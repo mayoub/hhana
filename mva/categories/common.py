@@ -30,7 +30,7 @@ CUTS_1J = LEAD_JET_50 & (- SUBLEAD_JET_30)
 CUTS_0J = (- LEAD_JET_50)
 
 MET = Cut('MET_et > 20000')
-DR_TAUS = Cut('0.8 < dR_tau1_tau2 < 2.4')
+DR_TAUS = Cut('0.8 < dR_tau1_tau2 < 2.8')
 DETA_TAUS = Cut('dEta_tau1_tau2 < 1.5')
 DETA_TAUS_CR = Cut('dEta_tau1_tau2 > 1.5')
 RESONANCE_PT = Cut('resonance_pt > 100000')
@@ -82,7 +82,7 @@ class Category_Preselection(Category):
     label = '#tau_{had}#tau_{had} Preselection'
     common_cuts = (
         PRESELECTION
-        & Cut(MET_CENTRALITY.format(pi / 4))
+        & Cut(MET_CENTRALITY.format(pi / 2))
         )
 
 

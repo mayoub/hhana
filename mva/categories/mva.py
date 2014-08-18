@@ -38,6 +38,7 @@ class Category_VBF(Category_Preselection):
     cuts = (
         CUTS_VBF
         & Cut('dEta_jets > 2.0')
+        & Cut('resonance_pt > 40000')
         )
     features = features_vbf
     # train with only VBF mode

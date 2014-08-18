@@ -114,8 +114,10 @@ class Analysis(object):
             self.mu = mu
 
         self.data = samples.Data(year=year,
-            markersize=1.2,
-            linewidth=1)
+                                 ntuple_path='/cluster/data12/qbuat/ntuples_hh/',
+                                 student='hhskim_notesshift',
+                                 markersize=1.2,
+                                 linewidth=1)
 
         self.higgs_125 = samples.Higgs(
             year=year,
