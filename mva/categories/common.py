@@ -5,6 +5,13 @@ from .base import Category
 from .. import MMC_MASS
 # All basic cut definitions are here
 
+
+TAU1_L1MATCHED = Cut('l1tau1_RoIWord==eftau1_RoIWord')
+TAU2_L1MATCHED = Cut('l1tau2_RoIWord==eftau2_RoIWord')
+TAU1_EFMATCHED = Cut('eftau1_eta!=-1111')
+TAU2_EFMATCHED = Cut('eftau2_eta!=-1111')
+TAU_TRIGGER_MATCHED = TAU1_L1MATCHED & TAU2_L1MATCHED & TAU1_EFMATCHED & TAU2_EFMATCHED
+
 TAU1_MEDIUM = Cut('tau1_JetBDTSigMedium==1')
 TAU2_MEDIUM = Cut('tau2_JetBDTSigMedium==1')
 TAU1_TIGHT = Cut('tau1_JetBDTSigTight==1')
@@ -40,7 +47,8 @@ MET_CENTRALITY = 'MET_bisecting || (dPhi_min_tau_MET < {0})'
 
 # common preselection cuts
 PRESELECTION = (
-    LEAD_TAU_35 & SUBLEAD_TAU_25
+    TAU_TRIGGER_MATCHED 
+    & LEAD_TAU_35 & SUBLEAD_TAU_25
     & ID_MEDIUM_TIGHT
     & MET
     & Cut('%s > 0' % MMC_MASS)

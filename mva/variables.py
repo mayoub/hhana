@@ -89,6 +89,155 @@ YEAR_VARIABLES = {
     }
 }
 
+EF_VARIABLES = {
+    'eftau1_pt': {
+        'title': r'$EF \tau_{1} p_{T}$',
+        'root': 'EF #font[152]{#tau}_{1} #font[52]{p}_{T}',
+        'filename': 'eftau1_pt',
+        'binning': {
+            2011: {
+                'PRESELECTION': (10, 35, 90),
+                'REST': (10, 35, 90),
+                None: (10, 35, 160)},
+            2012: {
+                'PRESELECTION': (20, 35, 90),
+                'REST': (20, 35, 90),
+                None: (20, 35, 160)}},
+        'scale': 0.001,
+        'units': 'GeV',
+    },
+    'eftau2_pt': {
+        'title': r'$EF \tau_{2} p_{T}$',
+        'root': 'EF #font[152]{#tau}_{2} #font[52]{p}_{T}',
+        'filename': 'eftau2_pt',
+        'binning': {
+            2011: {
+                'PRESELECTION': (10, 25, 60),
+                'REST': (10, 25, 60),
+                None: (10, 25, 100)},
+            2012: {
+                'PRESELECTION': (20, 25, 60),
+                'REST': (20, 25, 60),
+                None: (20, 25, 100)}},
+        'scale': 0.001,
+        'units': 'GeV',
+    },
+    'eftau1_eta': {
+        'title': r'EF $\tau_{1} \eta$',
+        'root': 'EF #font[152]{#tau}_{1} #font[152]{#eta}',
+        'filename': 'eftau1_eta',
+        'binning': (20, -3, 3),
+        'legend': 'left',
+    },
+    'eftau2_eta': {
+        'title': r'EF $\tau_{2} \eta$',
+        'root': 'EF #font[152]{#tau}_{2} #font[152]{#eta}',
+        'filename': 'eftau2_eta',
+        'binning': (20, -3, 3),
+        'legend': 'left',
+    },
+    'dR_eftaus': {
+        'title': r'EF $\Delta R(\tau,\tau)$',
+        'root': 'EF #font[152]{#Delta}#font[52]{R}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'dr_eftaus',
+        'binning': (8, 0.8, 2.4),
+        'ypadding': (0.5, 0),
+    },
+    'dPhi_eftaus': {
+        'title': r'$\Delta \phi(\tau,\tau)$',
+        'root': '#font[152]{#Delta#phi}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'dphi_tau1_tau2',
+        'binning': (12, 0., 2.4),
+        'legend': 'left',
+    },
+    'dEta_eftaus': {
+        'title': r'EF $\Delta \eta(\tau,\tau)$',
+        'root': 'EF #font[152]{#Delta#eta}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'deta_eftaus',
+        'binning': {
+            'BOOSTED': (10, 0, 1.5),
+            'VBF': (10, 0, 1.5),
+            'REST': (10, 0, 1.5),
+            None: (10, 0, 2.5)},
+        'ypadding': (0.5, 0),
+    },
+}
+
+L1_VARIABLES = {
+    'l1tau1_pt': {
+        'title': r'$L1 \tau_{1} p_{T}$',
+        'root': 'L1 #font[152]{#tau}_{1} #font[52]{p}_{T}',
+        'filename': 'l1tau1_pt',
+        'binning': {
+            2011: {
+                'PRESELECTION': (20, 15, 115),
+                'REST': (20, 15, 115),
+                None: (10, 20, 160)},
+            2012: {
+                'PRESELECTION': (20, 15, 115),
+                'REST': (20, 15, 115),
+                None: (20, 15, 115)}},
+        'scale': 0.001,
+        'units': 'GeV',
+    },
+    'l1tau2_pt': {
+        'title': r'$L1 \tau_{2} p_{T}$',
+        'root': 'L1 #font[152]{#tau}_{2} #font[52]{p}_{T}',
+        'filename': 'l1tau2_pt',
+        'binning': {
+            2011: {
+                'PRESELECTION': (10, 10, 60),
+                'REST': (10, 10, 60),
+                None: (18, 10, 100)},
+            2012: {
+                'PRESELECTION': (10, 10, 60),
+                'REST': (10, 10, 60),
+                None: (18, 10, 100)}},
+        'scale': 0.001,
+        'units': 'GeV',
+    },
+    'l1tau1_eta': {
+        'title': r'L1 $\tau_{1} \eta$',
+        'root': 'L1 #font[152]{#tau}_{1} #font[152]{#eta}',
+        'filename': 'l1tau1_eta',
+        'binning': (20, -3, 3),
+        'legend': 'left',
+    },
+    'l1tau2_eta': {
+        'title': r'L1 $\tau_{2} \eta$',
+        'root': 'L1 #font[152]{#tau}_{2} #font[152]{#eta}',
+        'filename': 'eftau2_eta',
+        'binning': (20, -3, 3),
+        'legend': 'left',
+    },
+    'dR_l1taus': {
+        'title': r'L1 $\Delta R(\tau,\tau)$',
+        'root': 'L1 #font[152]{#Delta}#font[52]{R}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'dr_l1taus',
+        'binning': (8, 0., 4),
+        'ypadding': (0.5, 0),
+    },
+    'dPhi_l1taus': {
+        'title': r'$\Delta \phi(\tau,\tau)$',
+        'root': '#font[152]{#Delta#phi}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'dphi_tau1_tau2',
+        'binning': (12, 0., 3.4),
+        'legend': 'left',
+    },
+    'dEta_l1taus': {
+        'title': r'L1 $\Delta \eta(\tau,\tau)$',
+        'root': 'L1 #font[152]{#Delta#eta}(#font[152]{#tau},#font[152]{#tau})',
+        'filename': 'deta_l1taus',
+        'binning': {
+            'BOOSTED': (10, 0, 2.5),
+            'VBF': (10, 0, 2.5),
+            'REST': (10, 0, 2.5),
+            None: (10, 0, 2.5)},
+        'ypadding': (0.5, 0),
+    },
+}
+
+
 VARIABLES = {
     #'ntrack_pv': {
     #    'title': r'Number of Tracks from the Primary Vertex',

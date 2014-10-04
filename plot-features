@@ -17,7 +17,7 @@ from mva.plotting import draw_channel_array, uncertainty_band
 from mva.systematics import get_systematics, parse_systematics
 from mva.categories import CATEGORIES
 from mva.massregions import MassRegions
-from mva.variables import VARIABLES, YEAR_VARIABLES, get_label
+from mva.variables import VARIABLES, YEAR_VARIABLES, EF_VARIABLES, L1_VARIABLES, get_label
 from mva.analysis import get_analysis
 from mva import log
 
@@ -66,6 +66,8 @@ for category in analysis.iter_categories(*cat_defs, names=args.category_names):
     else:
         VARS = VARIABLES
         VARS.update(YEAR_VARIABLES[args.year])
+        VARS.update(EF_VARIABLES)
+        VARS.update(L1_VARIABLES)
 
     clf = None
     if not is_control:
@@ -90,7 +92,7 @@ for category in analysis.iter_categories(*cat_defs, names=args.category_names):
         unblind=args.unblind,  # or is_control,
         cuts=cuts,
         show_ratio=args.show_ratio,
-        #clf=clf,
+        # clf=clf,
         #min_score=0.5924344731341187,
         #no_data=args.no_data,
         #top_label="Fakes Model: {0}".format(analysis.fakes_region),
