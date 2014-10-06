@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+"""
+"""
+# python imports
+import os
+import shutil
+import logging
+from multiprocessing import Process
+# ROOT/rootpy imports
+from rootpy.io import root_open
+from rootpy.tree import TreeModel, FloatCol, IntCol
+import ROOT
+
+log = logging.getLogger('trigger-matching')
+
+
+class Model(TreeModel):
+    trigger_matching = IntCol(-1111)
+
+
+def add_trigger_matching(tree):
+    tree.create_buffer()
+    tree.set_buffer(Model(), create_branches=True)
+    branch = tree.GetBranch('trigger_matching')
+
+    for event in tree:
+
+        tau1_l1_matched = False 
+        if tree.l1tau1_RoIWord == tree.eftau1_RoIWord:
+            tau1_l1_matched = True
+
+        tau2_l1_matched = False 
+        if tree.l1tau2_RoIWord == tree.eftau2_RoIWord:
+            tau2_l1_matched = True
+
+        tau1_ef_matched = False
+        if tree.eftau1_eta != -1111:
+            tau1_ef_matched = True
+
+        tau2_ef_matched = False
+        if tree.eftau2_eta != -1111:
+            tau2_ef_matched = True
+
+        if tau1_l1_matched and tau2_l1_matched and tau1_ef_matched and tau2_ef_matched:
+            tree.trigger_matching = 1
+        else:
+            tree.trigger_matching = -1
+        branch.Fill()
+    tree.SetEntries(-1)
+
+
+
+
+class Job(Process):
+    def __init__(self, filename):
+        super(Job, self).__init__()
+        self.filename = filename
+
+    def run(self):
+        filename = self.filename
+        path, name = os.path.split(filename)
+        # copy to new file
+        output = os.path.join(path, 'trigger_matched.' + name)
+        if os.path.exists(output):
+            return 
+        log.info("copying {0} to {1} ...".format(filename, output))
+        shutil.copy(filename, output)
+        with root_open(output, 'UPDATE') as file:
+            tree = file.tau
+            if 'trigger_matching' in tree:
+                log.info("trigger matching already exist in {0} ...".format(output))
+                return
+            else:
+                log.info("add trigger matching to {0}".format(output))
+                add_trigger_matching(tree)
+            tree.Write(tree.name, ROOT.TObject.kOverwrite)
+
+
+if __name__ == '__main__':
+    from rootpy.extern.argparse import ArgumentParser
+
+    parser = ArgumentParser()
+    parser.add_argument('files', nargs='+')
+    args = parser.parse_args()
+
+    from statstools.parallel import run_pool
+    
+    jobs = [Job(f) for f in args.files]
+    run_pool(jobs, n_jobs=-1)

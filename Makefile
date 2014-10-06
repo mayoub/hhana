@@ -186,6 +186,10 @@ ntup-update:
 higgs-pt:
 	./higgs-pt $(HHNTUP_RUNNING)/hhskim*tautau*.root
 
+.PHONY: trigger-matching
+trigger-matching:
+	./trigger-matching $(HHNTUP_RUNNING)/hhskim*.root
+
 .PHONY: $(HHNTUP)/merged_grl_11.xml
 $(HHNTUP)/merged_grl_11.xml:
 	ls $(HHNTUP)/data/hhskim.data11-*.root | sed 's/$$/:\/lumi/g' | xargs grl or > $@
