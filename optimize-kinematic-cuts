@@ -6,8 +6,9 @@ from multiprocessing import Process, Queue
 import time
 # ROOT/rootpy imports
 from rootpy import ROOT
+from rootpy.io import root_open
 from rootpy.stats import histfactory 
-from rootpy.plotting import Canvas, Legend, Hist
+from rootpy.plotting import Canvas, Legend, Hist, Graph
 from rootpy.plotting.style.atlas.labels import ATLAS_label
 #local imports
 from mva import CONST_PARAMS, POI
@@ -21,20 +22,36 @@ from statstools.plotting import pvalue_plot
 log = logging.getLogger(os.path.basename(__file__))
 gaussian_cdf_c = ROOT.Math.gaussian_cdf_c
 
-def get_workspace(scores, binning, category,
+def _to_uniform(_x):
+    uniform_list = []
+    for i, x in enumerate(_x):
+        uniform_list.append(i)
+    return uniform_list
+
+def _to_graph(_y, name='graph'):
+    _x = _to_uniform(_y)
+    gr = Graph(len(_x))
+    for i, (x, y) in enumerate(zip(_x, _y)):
+        log.info((i, x, y))
+        gr.SetPoint(i, x, y)
+    gr.name = name
+    return gr
+
+
+
+def get_workspace(scores, hist_template, clf, category,
                   mass=125, cuts=None):
     log.info(cuts)
-    hist_template = Hist(binning)
     background = []
     for sample, scores_dict in scores.bkg_scores:
         background.append(sample.get_histfactory_sample(
-                hist_template, 'classifier', category, TARGET_REGION,
+                hist_template, clf, category, TARGET_REGION,
                 cuts=cuts,
                 scores=scores_dict))
     signal = []
     for sample, scores_dict in scores.all_sig_scores[mass]:
         signal.append(sample.get_histfactory_sample(
-                hist_template, 'classifier', category, TARGET_REGION,
+                hist_template, clf, category, TARGET_REGION,
                 cuts=cuts,
                 scores=scores_dict))
     # TODO: why is the clone needed?
@@ -46,12 +63,12 @@ def get_workspace(scores, binning, category,
     measurement = histfactory.make_measurement(
         'MVA', channel, POI=POI, const_params=CONST_PARAMS)
     log.info('Measurement {0} ready to be fixed'.format(measurement))
-    fix_measurement(measurement)
+    fix_measurement(measurement, prune_samples=True)
     log.info('fixed !') 
     return histfactory.make_workspace(measurement, silence=True)
 
 def get_sig(category, cuts, mass=125):
-    analysis = Analysis(2012)
+    analysis = Analysis(2012, use_embedding=False)
     analysis.normalize(category)
     clf = analysis.get_clf(
         category, load=True, 
@@ -60,15 +77,28 @@ def get_sig(category, cuts, mass=125):
         clf, category, TARGET_REGION, 
         mode='workspace', cuts=cuts,
         masses=[mass])
+    # binning = list(Hist(40, scores.min_score, scores.max_score).xedges())
+    # binning[0] -=1E5
+    # binning[-1] +=1E5
     binning = clf.binning(analysis.year, overflow=1E5)
+    hist_template = Hist(binning)
     ws = get_workspace(
-        scores, binning, category,
+        scores, hist_template, clf, category,
         mass=mass, cuts=cuts)
     log.info(ws)
     sig, _, _ = significance(ws)
     log.info(sig)
     # -- handle nan
     return 0 if sig != sig else sig
+
+
+def fit(category, cuts, n_jobs=-1):
+    sigs = map_pool(
+        FuncWorker, [(get_sig, category, cut) for cut in cuts], 
+        n_jobs=n_jobs)
+    pvals  = [gaussian_cdf_c(sig) for sig in sigs]
+    return sigs, pvals
+
 
 if __name__ == '__main__':
     
@@ -80,6 +110,8 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('--jobs', type=int, default=-1)
+    parser.add_argument('--fit', action='store_true', default=False)
+    parser.add_argument('--plot', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -87,26 +119,102 @@ if __name__ == '__main__':
 
 
     cuts_baseline_run2 = Cut('tau1_pt>40000') & Cut('tau2_pt>30000') & Cut('jet1_pt>30000')
-
-    lead_tau_cuts = range(35, 75, 2)
-    sublead_tau_cuts = range(25, 65, 2)
-    lead_jet_cuts = range(50, 90, 2)
-    sublead_jet_cuts = range(30, 70, 2)
+    steps_tau = 2
+    steps_jet = 5
+    lead_tau_cuts = range(15, 34, steps_tau)
+    sublead_tau_cuts = range(11, 30, steps_tau)
+    lead_jet_cuts = range(50, 95, steps_jet)
+    sublead_jet_cuts = range(30, 75, steps_jet)
     dr_taus_cuts = [2.4-0.1*i for i in range(0, 15)]
 
-    cuts_l = ['tau1_pt > {0}'.format(cut_gev*1e3) for cut_gev in lead_tau_cuts]
-    cuts_sl = ['tau2_pt > {0}'.format(cut_gev*1e3) for cut_gev in sublead_tau_cuts]
+    labels_dict = {
+        'pvals_t_l':{'label': 'scan L1 p_{{T}}(#tau_{{1}}): {0} - {1} GeV ({2} GeV)'.format(
+                lead_tau_cuts[0], lead_tau_cuts[-1], steps_tau),
+                  'color': 'blue',
+                  'linestyle' : 'dashed'},
+        'pvals_t_sl':{'label': 'scan L1 p_{{T}}(#tau_{{2}}): {0} - {1} GeV ({2} GeV)'.format(
+                sublead_tau_cuts[0], sublead_tau_cuts[-1], steps_tau),
+                   'color': 'red',
+                   'linestyle' : 'dashed'},
+        'pvals_j_l':{'label': 'scan p_{{T}}(j_{{1}}): {0} - {1} GeV ({2} GeV)'.format(
+                lead_jet_cuts[0], lead_jet_cuts[-1], steps_jet),
+                      'color': 'green'},
+        'pvals_j_sl':{'label': 'scan p_{{T}}(j_{{2}}): {0} - {1} GeV ({2} GeV)'.format(
+                sublead_jet_cuts[0], sublead_jet_cuts[-1], steps_jet),
+                      'color': 'purple'},
+        }                  
+
+    cuts_l = ['l1tau1_pt > {0}'.format(cut_gev*1e3) for cut_gev in lead_tau_cuts]
+    cuts_sl = ['l1tau2_pt > {0}'.format(cut_gev*1e3) for cut_gev in sublead_tau_cuts]
     cuts_j_l = ['jet1_pt > {0}'.format(cut_gev*1e3) for cut_gev in lead_jet_cuts]
     cuts_j_sl = ['jet2_pt > {0}'.format(cut_gev*1e3) for cut_gev in sublead_jet_cuts]
     cuts_dr = [cuts_baseline_run2&'dR_tau1_tau2 < {0}'.format(cut) for cut in dr_taus_cuts]
 
-    # get_sig(category, cuts_dr[2])
 
-    # sigs_dr = {}
-    # for cat in (Category_VBF, Category_Boosted):
-    #     sigs_dr[cat.name] = map_pool(
-    #         FuncWorker, [(get_sig, cat, cut) for cut in cuts_dr],
-    #         n_jobs=args.jobs)
+    if args.fit:
+        _, pvals_t_l = fit(category, cuts_l, n_jobs=args.jobs)
+        _, pvals_t_sl = fit(category, cuts_sl, n_jobs=args.jobs)
+        _, pvals_j_l = fit(category, cuts_j_l, n_jobs=args.jobs)
+        _, pvals_j_sl = fit(category, cuts_j_sl, n_jobs=args.jobs)
+        
+        with root_open('temp_kin_cuts.root', 'recreate') as fout:
+            gr_t_l = _to_graph(pvals_t_l, 'pvals_t_l')
+            gr_t_sl = _to_graph(pvals_t_sl, 'pvals_t_sl')
+            gr_j_l = _to_graph(pvals_j_l, 'pvals_j_l')
+            gr_j_sl = _to_graph(pvals_j_sl, 'pvals_j_sl')
+            gr_t_l.Write()
+            gr_t_sl.Write()
+            gr_j_l.Write()
+            gr_j_sl.Write()
+
+    if args.plot:
+        fout = root_open('temp_kin_cuts.root')
+        graphs = []
+        max_len = -1
+        for _, _, names in fout.walk(class_pattern='*TGraphAsymmErrors*'):
+            for name in names:
+                log.info(name)
+                graphs.append(fout[name])
+                if len(fout[name]) > max_len:
+                    max_len = len(fout[name])
+
+        pvals = []
+        linecolors = []
+        thres = list(graphs[0].x())
+        for graph in graphs:
+            pvals.append(list(graph.y()))
+            linecolors.append(labels_dict[graph.name]['color'])
+            graph.title = labels_dict[graph.name]['label']
+            graph.legendstyle = 'L'
+            graph.linecolor = labels_dict[graph.name]['color']
+            graph.linewidth = 4
+            log.info(list(graph.x()))
+            log.info(list(graph.y()))
+        c = Canvas()
+        pvalue_plot(
+            thres, pvals, 
+            pad=c, xtitle='threshold step', 
+            yrange=(gaussian_cdf_c(2.5), 50),
+            linecolor=linecolors)
+
+        leg = Legend(
+            graphs, header=category.label, x=0.5,
+            textsize=20)
+        leg.Draw('same')
+        ATLAS_label(
+            0.5, 0.90, text="Internal", 
+            sqrts=8, pad=c, sep=0.12)
+        c.SaveAs('optimize-pt-cuts.png')
+
+
+
+
+    # labels = []
+    # labels.append('scan p_{T}(#tau_{1}): 35 - 75 GeV (2 GeV)')
+    # labels.append('scan p_{T}(#tau_{2}): 25 - 65 GeV (2 GeV)')
+    # labels.append('scan p_{T}(j_{1}): 50 - 90 GeV (2 GeV)') 
+    # labels.append('scan p_{T}(j_{2}): 30 - 70 GeV (2 GeV)') 
+        
 
     # pvals_dr = {}
     # log.info(dr_taus_cuts)
@@ -114,57 +222,65 @@ if __name__ == '__main__':
     #     log.info('{0}: {1}'.format(name,sigs))
     #     pvals_dr[name] = [gaussian_cdf_c(sig) for sig in sigs]
 
-    sigs_t_l = map_pool(
-        FuncWorker, [(get_sig, category, cut) for cut in cuts_l], 
-        n_jobs=args.jobs)
+    # sigs_t_l = map_pool(
+    #     FuncWorker, [(get_sig, category, cut) for cut in cuts_l], 
+    #     n_jobs=args.jobs)
 
-    sigs_t_sl = map_pool(
-        FuncWorker, [(get_sig, category, cut) for cut in cuts_sl], 
-        n_jobs=args.jobs)
+    # sigs_t_sl = map_pool(
+    #     FuncWorker, [(get_sig, category, cut) for cut in cuts_sl], 
+    #     n_jobs=args.jobs)
 
-    sigs_j_l = map_pool(
-        FuncWorker, [(get_sig, category, cut) for cut in cuts_j_l], 
-        n_jobs=args.jobs)
+    # sigs_j_l = map_pool(
+    #     FuncWorker, [(get_sig, category, cut) for cut in cuts_j_l], 
+    #     n_jobs=args.jobs)
 
-    sigs_j_sl = map_pool(
-        FuncWorker, [(get_sig, category, cut) for cut in cuts_j_sl], 
-        n_jobs=args.jobs)
+    # sigs_j_sl = map_pool(
+    #     FuncWorker, [(get_sig, category, cut) for cut in cuts_j_sl], 
+    #     n_jobs=args.jobs)
 
+    # # ==================================================
+    # # pvalue plot for pT(tau) and pT(jet) cut variations
+    
+    # thres = range(0, 20)
+    # c = Canvas()
+    # # _, graphs = pvalue_plot(
+    # #     thres, [pvals_t_l, pvals_t_sl, pvals_j_l, pvals_j_sl], 
+    # #     pad=c, xtitle='threshold step', 
+    # #     yrange=(gaussian_cdf_c(2.5), 50),
+    # #     linecolor = ['blue', 'red', 'green', 'purple'])
 
-    pvals_t_l  = [gaussian_cdf_c(sig) for sig in sigs_t_l]
-    pvals_t_sl = [gaussian_cdf_c(sig) for sig in sigs_t_sl]
-    pvals_j_l  = [gaussian_cdf_c(sig) for sig in sigs_j_l]
-    pvals_j_sl = [gaussian_cdf_c(sig) for sig in sigs_j_sl]
+    # # labels = []
+    # # labels.append('scan p_{T}(#tau_{1}): 35 - 75 GeV (2 GeV)')
+    # # labels.append('scan p_{T}(#tau_{2}): 25 - 65 GeV (2 GeV)')
+    # # labels.append('scan p_{T}(j_{1}): 50 - 90 GeV (2 GeV)') 
+    # # labels.append('scan p_{T}(j_{2}): 30 - 70 GeV (2 GeV)') 
 
+    # _, graphs = pvalue_plot(
+    #     thres, [pvals_t_l, pvals_t_sl], 
+    #     pad=c, xtitle='threshold step', 
+    #     yrange=(gaussian_cdf_c(2.5), 50),
+    #     linecolor = ['blue', 'red'])
 
-    # ==================================================
-    # pvalue plot for pT(tau) and pT(jet) cut variations
-    thres = range(0, 20)
-    c = Canvas()
-    _, graphs = pvalue_plot(
-        thres, [pvals_t_l, pvals_t_sl, pvals_j_l, pvals_j_sl], 
-        pad=c, xtitle='threshold step', 
-        yrange=(gaussian_cdf_c(2.5), 50),
-        linecolor = ['blue', 'red', 'green', 'purple'])
+    # labels = []
+    # labels.append('scan p_{T}(#tau_{1}): 15 - 30 GeV (5 GeV)')
+    # labels.append('scan p_{T}(#tau_{2}): 11 - 30 GeV (5 GeV)')
+    # # labels.append('scan p_{T}(#tau_{1}): 35 - 75 GeV (2 GeV)')
+    # # labels.append('scan p_{T}(#tau_{2}): 25 - 65 GeV (2 GeV)')
+    # # labels.append('scan p_{T}(j_{1}): 50 - 90 GeV (2 GeV)') 
+    # # labels.append('scan p_{T}(j_{2}): 30 - 70 GeV (2 GeV)') 
 
-    labels = []
-    labels.append('scan p_{T}(#tau_{1}): 35 - 75 GeV (2 GeV)')
-    labels.append('scan p_{T}(#tau_{2}): 25 - 65 GeV (2 GeV)')
-    labels.append('scan p_{T}(j_{1}): 50 - 90 GeV (2 GeV)') 
-    labels.append('scan p_{T}(j_{2}): 30 - 70 GeV (2 GeV)') 
+    # for graph, label in zip(graphs, labels):
+    #     graph.title = label
+    #     graph.legendstyle = 'L'
 
-    for graph, label in zip(graphs, labels):
-        graph.title = label
-        graph.legendstyle = 'L'
-
-    leg = Legend(
-        graphs, header=category.label, 
-        textsize=20)
-    leg.Draw('same')
-    ATLAS_label(
-        0.2, 0.88, text="Internal", 
-        sqrts=8, pad=c, sep=0.12)
-    c.SaveAs('optimize-pt-cuts.png')
+    # leg = Legend(
+    #     graphs, header=category.label, 
+    #     textsize=20)
+    # leg.Draw('same')
+    # ATLAS_label(
+    #     0.2, 0.88, text="Internal", 
+    #     sqrts=8, pad=c, sep=0.12)
+    # c.SaveAs('optimize-pt-cuts.png')
 
 
     # # ==========================================

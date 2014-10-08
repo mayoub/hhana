@@ -127,7 +127,8 @@ class Analysis(object):
             linewidth=2,
             linestyle='dashed',
             scale=self.mu,
-            ggf_weight=ggf_weight)
+            ggf_weight=ggf_weight,
+            color='#FF0000')
 
         # QCD shape region SS or !OS
         self.qcd = samples.QCD(

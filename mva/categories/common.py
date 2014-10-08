@@ -53,7 +53,6 @@ PRESELECTION = (
     & ID_MEDIUM_TIGHT
     & MET
     & Cut('%s > 0' % MMC_MASS)
-    & DR_TAUS
     & TAU_SAME_VERTEX
     )
 
@@ -80,17 +79,41 @@ CUTS_BOOSTED_CR = (
     )
 
 
-class Category_Preselection_NO_MET_CENTRALITY(Category):
-    name = 'preselection'
+class Category_Preselection_NO_MET_CENTRALITY_NO_DR(Category):
+    name = 'preselection_no_met_centrality_no_dr'
     label = '#tau_{had}#tau_{had} Preselection'
     common_cuts = PRESELECTION
 
+class Category_Preselection_NO_MET_CENTRALITY(Category):
+    name = 'preselection'
+    label = '#tau_{had}#tau_{had} Preselection'
+    common_cuts = (
+        PRESELECTION
+        & DR_TAUS
+        )
+    
+class Category_VBF_Preselection(Category):
+    name = 'vbf_preselection'
+    label = '#tau_{had}#tau_{had} Preselection + 2jets'
+    common_cuts = (
+        PRESELECTION
+        & CUTS_2J
+        )
+
+class Category_Boosted_Preselection(Category):
+    name = 'boosted_preselection'
+    label = '#tau_{had}#tau_{had} Preselection + p_{T}^{H}>100 GeV'
+    common_cuts = (
+        PRESELECTION
+        & RESONANCE_PT
+        )
 
 class Category_Preselection(Category):
     name = 'preselection'
     label = '#tau_{had}#tau_{had} Preselection'
     common_cuts = (
         PRESELECTION
+        & DR_TAUS
         & Cut(MET_CENTRALITY.format(pi / 4))
         )
 

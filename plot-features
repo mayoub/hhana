@@ -69,9 +69,9 @@ for category in analysis.iter_categories(*cat_defs, names=args.category_names):
         VARS.update(EF_VARIABLES)
         VARS.update(L1_VARIABLES)
 
-    clf = None
-    if not is_control:
-        clf = analysis.get_clf(category, load=True, transform=True)
+    # clf = None
+    # if not is_control:
+    #     clf = analysis.get_clf(category, load=True, transform=True)
     figs = draw_channel_array(
         analysis,
         vars=VARS,

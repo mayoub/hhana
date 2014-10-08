@@ -1,0 +1,164 @@
+#!/usr/bin/env python
+
+from mva.categories import (Category_Preselection_NO_MET_CENTRALITY_NO_DR, 
+                            Category_Boosted_Preselection, 
+                            Category_VBF_Preselection)
+from mva.analysis import Analysis
+from mva.variables import VARIABLES, L1_VARIABLES, get_label
+from mva.plotting import draw_contours
+from mva.plotting.utils import legend_params
+from mva.defaults import TARGET_REGION
+from mva import save_canvas, ATLAS_LABEL
+
+from rootpy.plotting import Canvas, Hist, Hist2D, Profile2D, F1, Legend, set_style, Graph
+from rootpy.plotting.style.atlas.labels import ATLAS_label
+from root_numpy import fill_hist, fill_profile, fill_graph
+import numpy as np
+
+from ROOT import TLatex, TLine
+
+set_style('ATLAS', shape='rect')
+
+analysis = Analysis(2012, use_embedding=False)
+#analysis.normalize(Category_Preselection)
+qcd = analysis.qcd
+ztt = analysis.ztautau
+higgs = analysis.higgs_125
+
+samples = [qcd, ztt, higgs]
+styles = ['solid', 'dashed', 'dotted']
+bounds = {
+    'dEta_l1taus': (0, 4),
+    'dPhi_l1taus': (0, 4),
+}
+scales = {
+    'dEta_l1taus': 1,
+    'dPhi_l1taus': 1,
+}
+
+def sample_contours(category, x, y, bins=8):
+    xbounds, xscale = bounds[x], scales[x]
+    ybounds, yscale = bounds[y], scales[y]
+    # draw axes
+    axes = Hist2D(bins, xbounds[0], xbounds[1],
+                  bins, ybounds[0], ybounds[1])
+    axes.xaxis.title = L1_VARIABLES[x]['root']
+    axes.yaxis.title = L1_VARIABLES[y]['root']
+    axes.Draw('AXIS')
+    hists = {}
+    hists_dr = []
+    for sample, style in zip(samples, styles):
+        array = sample.array(category, TARGET_REGION, fields=[x, y])
+        hist_dr = Hist(35, 0, 3.5)
+        sample.draw_array({'dR_l1taus': hist_dr}, category, TARGET_REGION)
+        hist_dr /= hist_dr.integral()
+        hist_dr.name = sample.name
+        hist_dr.xaxis.title = L1_VARIABLES['dR_l1taus']['root']
+        hist_dr.yaxis.title = 'Cumulative Distribution'
+        hist_dr.color = sample.hist_decor['color']
+        hist_dr.linewidth = 3
+        hist_dr.linestyle = style
+        # hacky line to get the cumulative PDF
+        hist_dr[1:-1] = list(np.cumsum(list(hist_dr.y())))
+        hists_dr.append(hist_dr)
+
+        array[:,0] *= xscale
+        array[:,1] *= yscale
+        hist = axes.Clone()
+        hist.name = sample.name
+        hist.color = sample.hist_decor['color']
+        fill_hist(hist, array[:,0:2], array[:,-1])
+        # normalize
+        hist /= hist.integral()
+        hists[sample.name] = hist
+        draw_contours(hist, labelsizes=14,
+                      labelcontours=False,
+                      linecolors=sample.hist_decor['color'],
+                      linewidths=3, linestyles=style,
+                      same=True)
+    return hists, hists_dr
+
+
+def legend(canvas, right=False):
+    objs = [Hist(1, 0, 1, legendstyle='L',
+                 linewidth=2, linestyle=style,
+                 linecolor=s.hist_decor['color'],
+                 title=s.label)
+            for s, style in zip(samples, styles)]
+    with canvas:
+        legend = Legend(objs, pad=canvas,
+                        **legend_params('right' if right else 'left',
+                                        textsize=20))
+        legend.Draw()
+
+def labels(canvas, category, atlas_label=True):
+    with canvas:
+        if atlas_label:
+            # draw the ATLAS label
+            ATLAS_label(0.65, 0.88,
+                        sep=0.1, pad=canvas, sqrts=None,
+                        text=ATLAS_LABEL, textsize=20)
+        label = TLatex()
+        label.SetNDC(True)
+        label.SetTextSize(20)
+        label.DrawLatex(0.2, 0.88, category.label)
+
+def dR_line(dR_cut_val):
+    xlimit = dR_cut_val
+    f = F1('sqrt([0]*[0]-x*x)', 0, dR_cut_val)
+    f.SetParameter(0, dR_cut_val)
+    f.linewidth = 2
+    return f
+
+
+label = TLatex()
+label.SetNDC(False)
+label.SetTextSize(20)
+line = TLine()
+line.SetLineWidth(2)
+line.SetLineStyle(7)
+formats = ('.eps', '.png')
+
+categories = (Category_VBF_Preselection, 
+              Category_Boosted_Preselection, 
+              Category_Preselection_NO_MET_CENTRALITY_NO_DR)
+
+for category in categories:
+    # VBF
+    canvas = Canvas()
+    canvas.SetGridx()
+    canvas.SetGridy()
+    hists, hists_dr = sample_contours(category,'dEta_l1taus', 'dPhi_l1taus')
+    legend(canvas, right=True)
+    labels(canvas, category)
+    dR_line(2.0).Draw('same')
+    dR_line(2.4).Draw('same')
+    dR_line(2.8).Draw('same')
+    save_canvas(canvas, 'plots/contours', 'contour_deta_dphi_{0}'.format(category.name), formats)
+
+    canvas = Canvas()
+    canvas.SetGridx()
+    canvas.SetGridy()
+    hists_dr[0].Draw('HIST')
+    for hist in hists_dr:
+        hist.Draw('SAMEHIST')
+    legend(canvas)
+    labels(canvas, category, atlas_label=False)
+    save_canvas(canvas, 'plots/contours', 'dR_comparison_{0}'.format(category.name), formats)
+    for _, hist in hists.items():
+        canvas = Canvas()
+        hist.Draw('col')
+        labels(canvas, category)
+        label = TLatex()
+        label.SetNDC(True)
+        label.SetTextSize(20)
+        label.DrawLatex(0.2, 0.83, '{0}'.format(hist.name))
+        dR_line(2.0).Draw('same')
+        dR_line(2.4).Draw('same')
+        dR_line(2.8).Draw('same')
+        canvas.RedrawAxis()
+        save_canvas(
+            canvas, 'plots/contours', 
+            'contour_deta_dphi_{0}_{1}'.format(hist.name, category.name), 
+            formats)
+    
