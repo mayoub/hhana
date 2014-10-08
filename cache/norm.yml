@@ -262,11 +262,11 @@
           OS_ISOL:
             qcd_data_scale: 1.0
             qcd_others_scale: 1.0
-            qcd_scale: 0.3556644592244826
-            qcd_scale_error: 0.01862717916520519
+            qcd_scale: 0.3518646034717982
+            qcd_scale_error: 0.006209133086082954
             qcd_z_scale: 1.0
-            z_scale: 0.9283034080302859
-            z_scale_error: 0.044075394520759245
+            z_scale: 0.8814166625591212
+            z_scale_error: 0.06993822093767867
     true:
       DETA_TAU1_TAU2:
         NONISOL:

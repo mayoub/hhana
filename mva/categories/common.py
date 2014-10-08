@@ -59,7 +59,7 @@ PRESELECTION = (
 # VBF category cuts
 CUTS_VBF = (
     CUTS_2J
-    & DETA_TAUS
+    #& DETA_TAUS
     )
 
 CUTS_VBF_CR = (
@@ -70,7 +70,7 @@ CUTS_VBF_CR = (
 # Boosted category cuts
 CUTS_BOOSTED = (
     RESONANCE_PT
-    & DETA_TAUS
+    #& DETA_TAUS
     )
 
 CUTS_BOOSTED_CR = (
@@ -113,7 +113,7 @@ class Category_Preselection(Category):
     label = '#tau_{had}#tau_{had} Preselection'
     common_cuts = (
         PRESELECTION
-        & DR_TAUS
+        # & DR_TAUS
         & Cut(MET_CENTRALITY.format(pi / 4))
         )
 
