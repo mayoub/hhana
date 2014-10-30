@@ -17,6 +17,7 @@ if not os.path.exists(CACHE_DIR):
 ETC_DIR = os.path.join(BASE_DIR, 'etc')
 DAT_DIR = os.path.join(BASE_DIR, 'dat')
 BDT_DIR = os.path.join(BASE_DIR, 'bdts')
+TMP_DIR = os.path.join(BASE_DIR, 'tmp')
 NTUPLE_PATH = os.path.join(os.getenv('HIGGSTAUTAU_NTUPLE_DIR'), 'prod_v40')
 DEFAULT_STUDENT = 'hhskim'
 

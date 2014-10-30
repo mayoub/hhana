@@ -88,6 +88,8 @@ def fix_measurement(meas,
                     symmetrize_partial=False,
                     prune_samples=False,
                     drop_others_shapes=False,
+                    rescale_np=False,
+                    rescale_np_factor=1,
                     remove_window=None):
     """
     Apply the HSG4 fixes on a HistFactory::Measurement
@@ -173,9 +175,10 @@ def fix_measurement(meas,
             prune_samples_threshold=1e-6)
 
     # RUN2 TRIGGER STUDIES
-    # #rescale QCD fake
-    # process_measurement(
-    #     meas,
-    #     rescale_np_names=['ATLAS_ANA_HH_2012_QCD'],
-    #     rescale_np_samples=['Fakes'],
-    #     rescale_np_factor=2.0)
+    if rescale_np:
+        # #rescale QCD fake
+        process_measurement(
+            meas,
+            rescale_np_names=['*ANA_HH_2012_QCD'],
+            rescale_np_samples=['Fakes'],
+            rescale_np_factor=rescale_np_factor)

@@ -59,7 +59,7 @@ PRESELECTION = (
 # VBF category cuts
 CUTS_VBF = (
     CUTS_2J
-    #& DETA_TAUS
+    # & DETA_TAUS
     )
 
 CUTS_VBF_CR = (

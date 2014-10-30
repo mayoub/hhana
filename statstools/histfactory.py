@@ -360,9 +360,21 @@ def process_measurement(m,
                     continue
                 for np in s.overall_sys:
                     if matched(np.name, rescale_np_names, ignore_case=True):
+                        log.info('{0} < {1} < {2}'.format(np.low, 1, np.high))
                         rescale_overallsys(np, nominal=1, scale_factor=rescale_np_factor)
                         log.info("RESCALE OverallSys `{0}` in sample `{1}` by {2}".format(
                                 np.name, s.name, rescale_np_factor))
+                        log.info('{0} < {1} < {2}'.format(np.low, 1, np.high))
+                for np in s.histo_sys:
+                    if matched(np.name, rescale_np_names, ignore_case=True):
+                        log.info(list(s.hist.y()))
+                        log.info(list(np.high.y()))
+                        log.info(list(np.low.y()))
+                        rescale_histosys(np, s.hist, scale_factor=rescale_np_factor)
+                        log.info("RESCALE HistoSys `{0}` in sample `{1}` by {2}".format(
+                                np.name, s.name, rescale_np_factor))
+                        log.info(list(np.high.y()))
+                        log.info(list(np.low.y()))
 
         # zero out negatives
         if zero_negs:
@@ -546,12 +558,44 @@ def rescale_overallsys(np, nominal=1., scale_factor=1.):
     Rescale the amplitude of a np
     -----------------------------
     """
-    up = np.high - nominal
-    dn = np.low - nominal
-    up *= scale_factor
-    dn *= scale_factor
-    np.high = nominal + up
-    np.low = nominal - dn
+    delta_up = abs(np.high - nominal)
+    delta_dn = abs(np.low - nominal)
+    delta_up *= scale_factor
+    delta_dn *= scale_factor
+    if np.high > nominal:
+        np.high = nominal + delta_up
+    else: 
+        np.high = nominal - delta_dn
+    if np.low > nominal:
+        np.low = nominal + delta_dn
+    else: 
+        np.low = nominal - delta_dn
+    return True
+
+def rescale_histosys(histosys, nominal, scale_factor=1.):
+    ratio_high = histosys.high / nominal
+    ratio_low = histosys.low / nominal
+    log.info(list(ratio_high.y()))
+    log.info(list(ratio_low.y()))
+
+    for bin in ratio_high.bins(overflow=True):
+        if bin.value < 1E-5:
+            continue
+        if bin.value > 1:
+            bin.value *= scale_factor
+        else:
+            bin.value /= scale_factor
+    for bin in ratio_low.bins(overflow=True):
+        if bin.value < 1E-5:
+            continue
+        if bin.value > 1:
+            bin.value *= scale_factor
+        else:
+            bin.value /= scale_factor
+    log.info(list(ratio_high.y()))
+    log.info(list(ratio_low.y()))
+    histosys.high = ratio_high * nominal
+    histosys.low = ratio_low * nominal
     return True
 
 def shape_chi2_test(nom, up, down, threshold):
