@@ -36,6 +36,7 @@ def draw_tracks(year):
         hists.append(hist)
         # get acceptance of the isolation cut
         isolated = array[:,0].ravel() == array[:,2].ravel()
+        # isolated = array[:,1].ravel() == array[:,3].ravel()
         print year, sample.name, weights[isolated].sum() / weights.sum()
     canvas = Canvas(width=700)
     stack = HistStack(hists)
