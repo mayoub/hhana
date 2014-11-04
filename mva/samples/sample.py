@@ -16,9 +16,10 @@ from rootpy.plotting.hist import _HistBase
 from rootpy.tree import Tree, Cut
 from rootpy.stats import histfactory
 from rootpy import asrootpy
+from rootpy.io import root_open
 
 # root_numpy imports
-from root_numpy import rec2array, stack, fill_hist
+from root_numpy import rec2array, stack, fill_hist, evaluate
 
 # higgstautau imports
 from higgstautau import samples as samples_db
@@ -26,7 +27,7 @@ from higgstautau import samples as samples_db
 # local imports
 from . import log; log = log[__name__]
 from .. import variables
-from .. import NTUPLE_PATH, DEFAULT_STUDENT, ETC_DIR, CACHE_DIR
+from .. import NTUPLE_PATH, DEFAULT_STUDENT, ETC_DIR, CACHE_DIR, DAT_DIR
 from ..utils import print_hist, ravel_hist, uniform_hist
 from ..classify import histogram_scores, Classifier
 from ..regions import REGIONS
@@ -111,6 +112,7 @@ class Sample(object):
                  trigger=True,
                  name='Sample',
                  label='Sample',
+                 iso_correction_graph='4_0__0_0_over_run1',
                  **hist_decor):
         self.year = year
         if year == 2011:
@@ -131,6 +133,20 @@ class Sample(object):
         if 'fillstyle' not in hist_decor:
             self.hist_decor['fillstyle'] = 'solid'
         self.trigger = trigger
+        with root_open(os.path.join(DAT_DIR, 'iso_curves.root')) as file_iso:
+            self.iso_trigger_correct = file_iso[iso_correction_graph]
+            # self.iso_trigger_correct.SetDirectory(0)
+
+    def iso_correction(self, rec):
+        if not self.iso_trigger_correct:
+            return
+        arr_1 = rec2array(rec[['tau1_pt']])
+        arr_1 *= 1000
+        arr_2 = rec2array(rec[['tau2_pt']])
+        arr_2 *= 1000
+        w_1 = evaluate(self.iso_trigger_correct, arr_1)
+        w_2 = evaluate(self.iso_trigger_correct, arr_2)
+        return [w_1], [w_2]
 
     def decorate(self, name=None, label=None, **hist_decor):
         if name is not None:
@@ -1203,6 +1219,10 @@ class SystematicsSample(Sample):
                 correction_weights = self.corrections(rec)
                 if correction_weights:
                     weights *= reduce(np.multiply, correction_weights)
+                iso_trigger_corrections_weights = self.iso_correction(rec)
+                if iso_trigger_corrections_weights:
+                    weights *= reduce(np.multiply, iso_trigger_corrections_weights[0])
+                    weights *= reduce(np.multiply, iso_trigger_corrections_weights[1])
                 # drop other weight fields
                 #rec = recfunctions.rec_drop_fields(rec, weight_branches)
                 # add the combined weight
