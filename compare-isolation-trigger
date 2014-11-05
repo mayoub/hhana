@@ -6,15 +6,17 @@ import os
 import logging
 # ROOT/rootpy imports
 from rootpy.tree import Cut
-from rootpy.plotting import Canvas, Legend
+from rootpy.plotting import Canvas, Legend, Hist
 from rootpy.extern.argparse import ArgumentParser
 from ROOT import TLatex
 # local imports
 from mva.samples import Higgs, MC_Ztautau
+from mva.analysis import Analysis
 from mva.categories import Category_VBF, Category_Boosted, Category_Preselection
 from mva.defaults import TARGET_REGION
 from mva.variables import VARIABLES, L1_VARIABLES
 from mva.plotting.templates import SimplePlot, RatioPlot
+from mva.classify import histogram_scores
 from mva import MMC_MASS
 
 log = logging.getLogger(os.path.basename(__file__))
@@ -82,7 +84,8 @@ if __name__=='__main__':
     vars = VARIABLES
     vars.update(L1_VARIABLES)
     field_dict = dict([(field, vars[field]) for field in fields])
-    
+    ana = Analysis(2012, use_embedding=False)
+    clf = ana.get_clf(Category, load=True, mass=125, transform=True)
     #     higgs = Higgs(2012)
     nom = Higgs(2012)
     nom_hists, field_scale = nom.get_field_hist(field_dict, Category_Boosted)
@@ -90,19 +93,23 @@ if __name__=='__main__':
                        Category_Boosted, 
                        TARGET_REGION, 
                        field_scale=field_scale)
+    h_scores_template = Hist(10, -1, 1)
+    scores = nom.scores(clf, Category, TARGET_REGION)
+    h_scores_nom = histogram_scores(h_scores_template, scores)
+    nom_hists['scores'] = h_scores_nom
     for _, h in nom_hists.items():
         h.title = 'nominal'
 
     isol_weights = [
-        ('4_0__0_02_over_run1', 'm = 0.02, b = 4.0', 'darkblue'),
+        # ('4_0__0_02_over_run1', 'm = 0.02, b = 4.0', 'darkblue'),
         ('3_5__0_04_over_run1', 'm = 0.04, b = 4.0', 'blue'),
-        ('3_0__0_06_over_run1', 'm = 0.06, b = 3.5', 'blueviolet'),
+        # ('3_0__0_06_over_run1', 'm = 0.06, b = 3.5', 'blueviolet'),
         ('2_5__0_08_over_run1', 'm = 0.08, b = 2.5', 'green'),
-        ('2_0__0_1_over_run1',  'm = 0.10, b = 2.0', 'greenyellow'),
-        ('1_5__0_12_over_run1', 'm = 0.12, b = 1.5', 'darkgreen'),
+        # ('2_0__0_1_over_run1',  'm = 0.10, b = 2.0', 'greenyellow'),
+        # ('1_5__0_12_over_run1', 'm = 0.12, b = 1.5', 'darkgreen'),
         ('1_0__0_14_over_run1', 'm = 0.14, b = 1.0', 'darkred'),
-        ('0_5__0_16_over_run1', 'm = 0.16, b = 0.5', 'red'),
-        ('0_0__0_18_over_run1', 'm = 0.18, b = 0.0', 'palevioletred'),
+        # ('0_5__0_16_over_run1', 'm = 0.16, b = 0.5', 'red'),
+        # ('0_0__0_18_over_run1', 'm = 0.18, b = 0.0', 'palevioletred'),
         ]
     sample_mod = []
     for iso, title, color in isol_weights:
@@ -110,17 +117,24 @@ if __name__=='__main__':
         sample_hists, _ = sample.get_field_hist(field_dict, Category_Boosted)
         sample.draw_array(
             sample_hists, Category_Boosted, TARGET_REGION, field_scale=field_scale)
+        scores = sample.scores(clf, Category, TARGET_REGION)
+        h_scores = histogram_scores(h_scores_template, scores)
+        sample_hists['scores'] = h_scores
+
         for _, h in sample_hists.items():
             h.title = title
             h.linecolor = color
         sample_mod.append(sample_hists)
     
-
+    field_dict['scores'] = 'scores'
     for field in field_dict:
         hist_nom = nom_hists[field]
         hist_mods = [hists[field] for hists in sample_mod]
         #hist_nom.title = 'Z#rightarrow#tau#tau'
-        hist_nom.xaxis.title = vars[field]['root']
+        if field == 'scores':
+            hist_nom.xaxis.title = 'BDT score'
+        else:
+            hist_nom.xaxis.title = vars[field]['root']
         label = '{0}, {1}'.format(nom.label, Category.label)
         pl = plot(hist_nom, hist_mods, label=label, logy=False)
         pl.SaveAs('compare_isolation_{0}_{1}.png'.format(field, Category.name))

@@ -135,7 +135,7 @@ class Sample(object):
         self.trigger = trigger
         with root_open(os.path.join(DAT_DIR, 'iso_curves_truth.root')) as file_iso:
             self.iso_trigger_correct = file_iso[iso_correction_graph]
-            # self.iso_trigger_correct.SetDirectory(0)
+            self.iso_trigger_correct.SetDirectory(0)
 
     def iso_correction(self, rec):
         if not self.iso_trigger_correct:
