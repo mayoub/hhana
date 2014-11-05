@@ -76,6 +76,7 @@ class Analysis(object):
                  random_mu=False,
                  mu=1.,
                  ggf_weight=True,
+                 iso_correction_graph='4_0__0_0_over_run1',#nominal
                  suffix=None,
                  norm_field=NORM_FIELD):
         self.year = year
@@ -93,6 +94,7 @@ class Analysis(object):
                 systematics=systematics,
                 workspace_norm=ztt_workspace_norm,
                 constrain_norm=constrain_norms,
+                iso_correction_graph=iso_correction_graph,
                 color='#00A3FF')
         else:
             log.info("Using ALPGEN Ztautau")
@@ -101,6 +103,7 @@ class Analysis(object):
                 systematics=systematics,
                 workspace_norm=ztt_workspace_norm,
                 constrain_norm=constrain_norms,
+                iso_correction_graph=iso_correction_graph,
                 color='#00A3FF')
 
         self.others = samples.Others(
@@ -128,6 +131,7 @@ class Analysis(object):
             linestyle='dashed',
             scale=self.mu,
             ggf_weight=ggf_weight,
+            iso_correction_graph=iso_correction_graph,
             color='#FF0000')
 
         # QCD shape region SS or !OS
@@ -170,7 +174,8 @@ class Analysis(object):
                     linecolor='red',
                     linewidth=2,
                     linestyle='solid',
-                    ggf_weight=self.ggf_weight)
+                    ggf_weight=self.ggf_weight,
+                    iso_correction_graph=iso_correction_graph)
                 if m != 125 and scale_125:
                     log.warning("SCALING SIGNAL TO 125")
                     log.info(str(s.mass))
@@ -187,6 +192,7 @@ class Analysis(object):
                         mass=m,
                         systematics=False,
                         scale=self.mu,
+                        iso_correction_graph=iso_correction_graph,
                         ggf_weight=self.ggf_weight).events()[1].value
                     log.warning("SCALING SIGNAL TO 125")
                     sf = events_125 / curr_events
@@ -198,6 +204,7 @@ class Analysis(object):
                         mass=m,
                         systematics=self.systematics,
                         scale=self.mu,
+                        iso_correction_graph=iso_correction_graph,
                         ggf_weight=self.ggf_weight)
                     if m != 125 and scale_125:
                         log.warning("SCALING SIGNAL TO 125")
@@ -223,6 +230,7 @@ class Analysis(object):
                         mode=_mode,
                         systematics=self.systematics,
                         scale=self.mu,
+                        iso_correction_graph=iso_correction_graph,
                         ggf_weight=self.ggf_weight))
         else:
             for m in mass:
@@ -232,6 +240,7 @@ class Analysis(object):
                     mode=mode,
                     systematics=self.systematics,
                     scale=self.mu,
+                    iso_correction_graph=iso_correction_graph,
                     ggf_weight=self.ggf_weight))
         return signals
 

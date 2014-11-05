@@ -1,0 +1,270 @@
+#!/usr/bin/env python
+# python imports
+import os
+import logging
+from multiprocessing import Process, Queue
+import time
+# ROOT/rootpy imports
+from rootpy import ROOT
+from rootpy.io import root_open
+from rootpy.stats import histfactory 
+from rootpy.plotting import Canvas, Legend, Hist, Graph
+from rootpy.plotting.style.atlas.labels import ATLAS_label
+#local imports
+from mva import CONST_PARAMS, POI, TMP_DIR
+from mva.analysis import Analysis
+from mva.defaults import TARGET_REGION
+from statstools.fixups import fix_measurement
+from statstools.significance import significance
+from statstools.parallel import map_pool, FuncWorker
+from statstools.plotting import pvalue_plot
+
+log = logging.getLogger(os.path.basename(__file__))
+gaussian_cdf_c = ROOT.Math.gaussian_cdf_c
+
+def _to_uniform(_x):
+    uniform_list = []
+    for i, x in enumerate(_x):
+        uniform_list.append(i)
+    return uniform_list
+
+def _to_graph(_y, x=None, name='graph'):
+    """
+    plot a list of value into a Graph
+    In case x is not specified, the _x axis 
+    goes from 0 to len(_y) of the _y values
+    """
+    if x is None:
+        _x = _to_uniform(_y)
+    else:
+        _x = x
+    gr = Graph(len(_x))
+    gr.name = name
+    for i, (x, y) in enumerate(zip(_x, _y)):
+        log.info((i, x, y))
+        gr.SetPoint(i, x, y)
+    return gr
+
+
+
+def get_workspace(scores, hist_template, clf, category,
+                  mass=125, cuts=None):
+    log.info(cuts)
+    background = []
+    for sample, scores_dict in scores.bkg_scores:
+        background.append(sample.get_histfactory_sample(
+                hist_template, clf, category, TARGET_REGION,
+                cuts=cuts,
+                scores=scores_dict))
+    signal = []
+    for sample, scores_dict in scores.all_sig_scores[mass]:
+        signal.append(sample.get_histfactory_sample(
+                hist_template, clf, category, TARGET_REGION,
+                cuts=cuts,
+                scores=scores_dict))
+    # TODO: why is the clone needed?
+    data_hist = sum([b.hist.Clone(shallow=True) for b in background])
+    data_hist.name = 'Data'
+    data = histfactory.Data('Data', data_hist)
+    channel = histfactory.Channel(category.name, signal + background, data)
+    log.info('Consider channel {0}'.format(channel))
+    measurement = histfactory.make_measurement(
+        'MVA', channel, POI=POI, const_params=CONST_PARAMS)
+    log.info('Measurement {0} ready to be fixed'.format(measurement))
+    fix_measurement(measurement, prune_samples=True)
+    log.info('fixed !') 
+    return histfactory.make_workspace(measurement, silence=True)
+
+def get_sig(category, cuts, mass=125):
+    analysis = Analysis(2012, use_embedding=False)
+    analysis.normalize(category)
+    clf = analysis.get_clf(
+        category, load=True, 
+        mass=mass, transform=True)
+    scores = analysis.get_scores(
+        clf, category, TARGET_REGION, 
+        mode='workspace', cuts=cuts,
+        masses=[mass])
+    binning = list(Hist(40, scores.min_score, scores.max_score).xedges())
+    binning[0] -=1E5
+    binning[-1] +=1E5
+    # binning = clf.binning(analysis.year, overflow=1E5)
+    hist_template = Hist(binning)
+    ws = get_workspace(
+        scores, hist_template, clf, category,
+        mass=mass, cuts=cuts)
+    log.info(ws)
+    sig, _, _ = significance(ws)
+    log.info(sig)
+    # -- handle nan
+    return 0 if sig != sig else sig
+
+
+def fit(category, cuts, n_jobs=-1):
+    sigs = map_pool(
+        FuncWorker, [(get_sig, category, cut) for cut in cuts], 
+        n_jobs=n_jobs)
+    pvals  = [gaussian_cdf_c(sig) for sig in sigs]
+    return sigs, pvals
+
+def plottables(graphs):
+    pvals = []
+    linecolors = []
+    thres = list(graphs[0].x())
+    for graph in graphs:
+        pvals.append(list(graph.y()))
+        linecolors.append(pvals_dict[graph.name]['color'])
+        graph.title = pvals_dict[graph.name]['label']
+        graph.legendstyle = 'L'
+        graph.linecolor = pvals_dict[graph.name]['color']
+        graph.linewidth = 4
+        log.info(list(graph.x()))
+        log.info(list(graph.y()))
+    return graphs, pvals, thres, linecolors
+
+if __name__ == '__main__':
+    
+    # pip install --user tabulate
+    from rootpy.extern.argparse import ArgumentParser
+    from rootpy.tree import Cut
+    from mva.categories import Category_VBF, Category_Boosted
+
+    parser = ArgumentParser()
+    parser.add_argument('--jobs', type=int, default=-1)
+    parser.add_argument('--fit', action='store_true', default=False)
+    parser.add_argument('--plot', action='store_true', default=False)
+
+    args = parser.parse_args()
+
+    category = Category_VBF
+    cuts_baseline_run2 = Cut('tau1_pt>40000') & Cut('tau2_pt>30000') & Cut('jet1_pt>30000') #& Cut('dR_tau1_tau2>0.8')
+
+    steps_tau = 2
+    steps_jet = 5
+    steps_dr = 0.2
+    lead_tau_cuts = range(15, 34, steps_tau)
+    sublead_tau_cuts = range(11, 30, steps_tau)
+    lead_jet_cuts = range(50, 95, steps_jet)
+    sublead_jet_cuts = range(30, 75, steps_jet)
+    dr_taus_cuts = [3-steps_dr*i for i in range(0, 11)]
+
+    pvals_dict = {
+        't_l':{
+            'label': 'scan L1 p_{{T}}(#tau_{{1}}): {0} - {1} GeV ({2} GeV)'.format(
+                lead_tau_cuts[0], lead_tau_cuts[-1], steps_tau),
+            'cuts': ['l1tau1_pt > {0}'.format(cut_gev*1e3) for cut_gev in lead_tau_cuts],
+            'color': 'blue',
+            'linestyle' : 'dashed',
+            },
+        't_sl':{
+            'label': 'scan L1 p_{{T}}(#tau_{{2}}): {0} - {1} GeV ({2} GeV)'.format(
+                sublead_tau_cuts[0], sublead_tau_cuts[-1], steps_tau),
+            'cuts': ['l1tau2_pt > {0}'.format(cut_gev*1e3) for cut_gev in sublead_tau_cuts],
+            'color': 'red',
+            'linestyle' : 'dashed',
+            },
+        'j_l':{
+            'label': 'scan p_{{T}}(j_{{1}}): {0} - {1} GeV ({2} GeV)'.format(
+                lead_jet_cuts[0], lead_jet_cuts[-1], steps_jet),
+            'cuts': ['jet1_pt > {0}'.format(cut_gev*1e3) for cut_gev in lead_jet_cuts],
+            'color': 'green',
+            },
+        'j_sl':{
+            'label': 'scan p_{{T}}(j_{{2}}): {0} - {1} GeV ({2} GeV)'.format(
+                sublead_jet_cuts[0], sublead_jet_cuts[-1], steps_jet),
+            'cuts': ['jet2_pt > {0}'.format(cut_gev*1e3) for cut_gev in sublead_jet_cuts],
+            'color': 'purple',
+            },
+        'dr_taus':{
+            'label': 'scan L1 #DeltaR(#tau_{{1}}, #tau_{{2}}) cut: {0} #rightarrow {1}'.format(
+                dr_taus_cuts[0], dr_taus_cuts[-1]),
+            'cuts': [cuts_baseline_run2&'dR_l1taus < {0}'.format(cut) for cut in dr_taus_cuts],
+            'color': 'red',
+            },
+        }
+
+    if args.fit:
+        # _, pvals_t_l = fit(category,  pvals_dict['t_l']['cuts'], n_jobs=args.jobs)
+        # _, pvals_t_sl = fit(category, pvals_dict['t_sl']['cuts'], n_jobs=args.jobs)
+        # _, pvals_j_l = fit(category,  pvals_dict['j_l']['cuts'], n_jobs=args.jobs)
+        # _, pvals_j_sl = fit(category, pvals_dict['j_sl']['cuts'], n_jobs=args.jobs)
+        # with root_open(os.path.join(TMP_DIR, 'temp_kin_cuts.root'), 'recreate') as fout:
+        #     gr_t_l = _to_graph(pvals_t_l, name='t_l')
+        #     gr_t_sl = _to_graph(pvals_t_sl, name='t_sl')
+        #     gr_j_l = _to_graph(pvals_j_l, name='j_l')
+        #     gr_j_sl = _to_graph(pvals_j_sl, name='j_sl')
+        #     gr_t_l.Write()
+        #     gr_t_sl.Write()
+        #     gr_j_l.Write()
+        #     gr_j_sl.Write()
+
+        dr_taus_cuts_list = pvals_dict['dr_taus']['cuts']
+        _, pvals_dr_vbf = fit(Category_VBF, dr_taus_cuts_list, n_jobs=args.jobs)
+        _, pvals_dr_boosted = fit(Category_Boosted, dr_taus_cuts_list, n_jobs=args.jobs)
+        log.info(dr_taus_cuts)
+        log.info(pvals_dr_vbf)
+        log.info(pvals_dr_boosted)
+        with root_open(os.path.join(TMP_DIR, 'temp_dr_cuts.root'), 'recreate'):
+            gr_dr_vbf = _to_graph(pvals_dr_vbf[::-1], x=dr_taus_cuts[::-1], name='dr_taus_vbf')
+            log.info(list(gr_dr_vbf.y()))
+            gr_dr_boosted = _to_graph(pvals_dr_boosted[::-1], x=dr_taus_cuts[::-1], name='dr_taus_boosted')
+            gr_dr_vbf.Write()
+            gr_dr_boosted.Write()
+
+    if args.plot:
+        with root_open(os.path.join(TMP_DIR, 'temp_kin_cuts.root')) as fout:
+            graphs = []
+            for _, _, names in fout.walk(class_pattern='*TGraphAsymmErrors*'):
+                for name in names:
+                    log.info(name)
+                    graphs.append(fout[name])
+            graphs, pvals, thres, linecolors  = plottables(graphs)
+            c = Canvas()
+            pvalue_plot(
+                thres, pvals, 
+                pad=c, xtitle='threshold step', 
+                yrange=(gaussian_cdf_c(2.5), 50),
+                linecolor=linecolors)
+            leg = Legend(
+                graphs, header=category.label, x=0.5,
+                textsize=20)
+            leg.Draw('same')
+            ATLAS_label(
+                0.5, 0.90, text="Internal", 
+                sqrts=8, pad=c, sep=0.12)
+            c.SaveAs('optimize-pt-cuts.png')
+            
+        with root_open(os.path.join(TMP_DIR, 'temp_dr_cuts.root')) as fout:
+            graphs = []
+            for _, _, names in fout.walk(class_pattern='*TGraphAsymmErrors*'):
+                for name in names:
+                    log.info(name)
+                    graphs.append(fout[name])
+            pvals = []
+            linecolors = []
+            thres = list(graphs[0].x())
+            for graph in graphs:
+                pvals.append(list(graph.y()))
+                linecolors.append('red' if 'vbf' in graph.name else 'blue')
+                if 'vbf' in graph.name:
+                    graph.title = Category_VBF.label
+                else:
+                    graph.title = Category_Boosted.label
+                graph.legendstyle = 'L'
+                graph.linecolor = 'red' if 'vbf' in graph.name else 'blue'
+                graph.linewidth = 4
+                log.info(list(graph.x()))
+                log.info(list(graph.y()))
+
+            c = Canvas()
+            pvalue_plot(
+                thres, pvals, 
+                pad=c, xtitle='Upper #DeltaR(#tau_{1}, #tau_{2}) cut value', 
+                yrange=(gaussian_cdf_c(2.5), 50),
+                linecolor=linecolors)
+            leg = Legend(graphs, header=pvals_dict['dr_taus']['label'], x=0.5, y=0.2, textsize=20)
+            leg.Draw('same')
+            ATLAS_label(
+                0.5, 0.90, text="Internal", 
+                sqrts=8, pad=c, sep=0.12)
+            c.SaveAs('optimize-dr-cuts.png')
