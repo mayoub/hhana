@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+"""
+"""
+# python imports
+import os
+import logging
+# ROOT/rootpy imports
+from rootpy.tree import Cut
+from rootpy.plotting import Canvas, Legend
+from rootpy.extern.argparse import ArgumentParser
+from ROOT import TLatex
+# local imports
+from mva.samples import Higgs, MC_Ztautau
+from mva.categories import Category_VBF, Category_Boosted, Category_Preselection
+from mva.defaults import TARGET_REGION
+from mva.variables import VARIABLES, L1_VARIABLES
+from mva.plotting.templates import SimplePlot, RatioPlot
+from mva import MMC_MASS
+
+log = logging.getLogger(os.path.basename(__file__))
+
+def plot(hist_nom, hist_mods, label=None, logy=False):
+    # hist_nom /= hist_nom.integral()
+    hist_mods_norm = []
+    for h in hist_mods:
+        # h /= h.integral()
+        hist_mods_norm.append(h)
+
+    # c = SimplePlot(xtitle=hist_nom.xaxis.title, ytitle='Arbitrary Unit', logy=logy)
+    c = RatioPlot(xtitle=hist_nom.xaxis.title, ytitle='Events', logy=logy, ratio_limits=(0.7, 1.3), ratio_title='New / Run1 isol')
+    hists = [hist_nom] + hist_mods_norm
+    for h in hists:
+        h.legendstyle = 'L'
+        h.linewidth = 2
+        h.drawstyle = 'HIST'
+    ratios = []
+    for h in hists:
+        r = h.Clone() 
+        r.Divide(hists[0])
+        r.drawstyle = 'HIST'
+        r.linecolor = h.linecolor
+        ratios.append(r)
+
+    c.draw('main', hists)
+    leg1 = Legend(hists, pad=c.pad('main'),
+                 textsize=12)
+    leg1.Draw('same')
+    if label is not None:
+        lat = TLatex(0.15, 0.97, label)
+        lat.SetTextSize(14)
+        lat.SetNDC()
+    lat.Draw('same')
+    c.draw('ratio', ratios)
+    return c
+
+if __name__=='__main__':
+    parser = ArgumentParser()
+    parser.add_argument('category', choices=['boosted', 'vbf'])
+    args = parser.parse_args()
+    if args.category == 'boosted':
+        Category = Category_Boosted
+    elif args.category == 'vbf':
+        Category = Category_VBF
+
+    # list of fields to plot
+    fields = [
+        MMC_MASS,
+        'dR_tau1_tau2',
+        'dEta_tau1_tau2',
+        'resonance_pt',
+        'tau1_pt',
+        'tau2_pt',
+        'jet1_pt',
+        'jet2_pt',
+        'dPhi_min_tau_MET',
+        'l1tau1_pt',
+        'l1tau2_pt',
+        'l1tau1_emisol',
+        'l1tau2_emisol',
+        ]
+    
+    vars = VARIABLES
+    vars.update(L1_VARIABLES)
+    field_dict = dict([(field, vars[field]) for field in fields])
+    
+    #     higgs = Higgs(2012)
+    nom = Higgs(2012)
+    nom_hists, field_scale = nom.get_field_hist(field_dict, Category_Boosted)
+    nom.draw_array(nom_hists, 
+                       Category_Boosted, 
+                       TARGET_REGION, 
+                       field_scale=field_scale)
+    for _, h in nom_hists.items():
+        h.title = 'nominal'
+
+    isol_weights = [
+        ('4_0__0_02_over_run1', 'm = 0.02, b = 4.0', 'darkblue'),
+        ('3_5__0_04_over_run1', 'm = 0.04, b = 4.0', 'blue'),
+        ('3_0__0_06_over_run1', 'm = 0.06, b = 3.5', 'blueviolet'),
+        ('2_5__0_08_over_run1', 'm = 0.08, b = 2.5', 'green'),
+        ('2_0__0_1_over_run1',  'm = 0.10, b = 2.0', 'greenyellow'),
+        ('1_5__0_12_over_run1', 'm = 0.12, b = 1.5', 'darkgreen'),
+        ('1_0__0_14_over_run1', 'm = 0.14, b = 1.0', 'darkred'),
+        ('0_5__0_16_over_run1', 'm = 0.16, b = 0.5', 'red'),
+        ('0_0__0_18_over_run1', 'm = 0.18, b = 0.0', 'palevioletred'),
+        ]
+    sample_mod = []
+    for iso, title, color in isol_weights:
+        sample = Higgs(2012, iso_correction_graph=iso)
+        sample_hists, _ = sample.get_field_hist(field_dict, Category_Boosted)
+        sample.draw_array(
+            sample_hists, Category_Boosted, TARGET_REGION, field_scale=field_scale)
+        for _, h in sample_hists.items():
+            h.title = title
+            h.linecolor = color
+        sample_mod.append(sample_hists)
+    
+
+    for field in field_dict:
+        hist_nom = nom_hists[field]
+        hist_mods = [hists[field] for hists in sample_mod]
+        #hist_nom.title = 'Z#rightarrow#tau#tau'
+        hist_nom.xaxis.title = vars[field]['root']
+        label = '{0}, {1}'.format(nom.label, Category.label)
+        pl = plot(hist_nom, hist_mods, label=label, logy=False)
+        pl.SaveAs('compare_isolation_{0}_{1}.png'.format(field, Category.name))
