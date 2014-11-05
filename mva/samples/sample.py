@@ -133,7 +133,7 @@ class Sample(object):
         if 'fillstyle' not in hist_decor:
             self.hist_decor['fillstyle'] = 'solid'
         self.trigger = trigger
-        with root_open(os.path.join(DAT_DIR, 'iso_curves.root')) as file_iso:
+        with root_open(os.path.join(DAT_DIR, 'iso_curves_truth.root')) as file_iso:
             self.iso_trigger_correct = file_iso[iso_correction_graph]
             # self.iso_trigger_correct.SetDirectory(0)
 
@@ -141,9 +141,7 @@ class Sample(object):
         if not self.iso_trigger_correct:
             return
         arr_1 = rec2array(rec[['tau1_pt']])
-        arr_1 *= 1000
         arr_2 = rec2array(rec[['tau2_pt']])
-        arr_2 *= 1000
         w_1 = evaluate(self.iso_trigger_correct, arr_1)
         w_2 = evaluate(self.iso_trigger_correct, arr_2)
         return [w_1], [w_2]
@@ -1219,10 +1217,12 @@ class SystematicsSample(Sample):
                 correction_weights = self.corrections(rec)
                 if correction_weights:
                     weights *= reduce(np.multiply, correction_weights)
-                iso_trigger_corrections_weights = self.iso_correction(rec)
-                if iso_trigger_corrections_weights:
-                    weights *= reduce(np.multiply, iso_trigger_corrections_weights[0])
-                    weights *= reduce(np.multiply, iso_trigger_corrections_weights[1])
+                if isinstance(self, (Signal, Ztautau)):
+                    log.info('Apply Isolation trigger weights')
+                    iso_trigger_corrections_weights = self.iso_correction(rec)
+                    if iso_trigger_corrections_weights:
+                        weights *= reduce(np.multiply, iso_trigger_corrections_weights[0])
+                        weights *= reduce(np.multiply, iso_trigger_corrections_weights[1])
                 # drop other weight fields
                 #rec = recfunctions.rec_drop_fields(rec, weight_branches)
                 # add the combined weight
