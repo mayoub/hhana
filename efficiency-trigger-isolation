@@ -1,0 +1,187 @@
+#!/usr/bin/env python
+# python imports
+import os
+import logging
+import numpy as np
+# ROOT/rootpy imports
+from rootpy import ROOT
+from rootpy.io import root_open
+from rootpy.stats import histfactory 
+from rootpy.plotting import Canvas, Legend, Hist2D, Hist
+from rootpy.plotting.style import set_style
+from rootpy.plotting.style.atlas.labels import ATLAS_label
+from root_numpy import fill_hist
+#local imports
+from mva import CONST_PARAMS, POI, TMP_DIR, DAT_DIR
+from mva.analysis import Analysis
+from mva.defaults import TARGET_REGION
+from statstools.fixups import fix_measurement
+from statstools.significance import significance
+from statstools.parallel import map_pool, FuncWorker
+from statstools.plotting import pvalue_plot
+
+log = logging.getLogger(os.path.basename(__file__))
+gaussian_cdf_c = ROOT.Math.gaussian_cdf_c
+
+def chunked_list(big_list, number_of_chunk=1):
+    if len(big_list) < number_of_chunk:
+        return [big_list]
+    chunked_lists = []
+    i_low = range(0, number_of_chunk)
+    i_low = [i * len(big_list) / number_of_chunk for i in i_low]
+    i_high = range(1, number_of_chunk+1) 
+    i_high = [i * len(big_list) / number_of_chunk for i in i_high]
+    i_high[-1] = len(big_list)
+    indices = zip(i_low, i_high)
+    for a, b in indices:
+        chunked_lists.append(big_list[a:b])
+    return chunked_lists
+
+def get_workspace(scores, hist_template, clf, category,
+                  mass=125):
+    background = []
+    for sample, scores_dict in scores.bkg_scores:
+        background.append(sample.get_histfactory_sample(
+                hist_template, clf, category, TARGET_REGION,
+                scores=scores_dict))
+    signal = []
+    for sample, scores_dict in scores.all_sig_scores[mass]:
+        signal.append(sample.get_histfactory_sample(
+                hist_template, clf, category, TARGET_REGION,
+                scores=scores_dict))
+    # TODO: why is the clone needed?
+    data_hist = sum([b.hist.Clone(shallow=True) for b in background])
+    data_hist.name = 'Data'
+    data = histfactory.Data('Data', data_hist)
+    channel = histfactory.Channel(category.name, signal + background, data)
+    log.info('Consider channel {0}'.format(channel))
+    measurement = histfactory.make_measurement(
+        'MVA', channel, POI=POI, const_params=CONST_PARAMS)
+    log.info('Measurement {0} ready to be fixed'.format(measurement))
+    fix_measurement(measurement, prune_samples=True)
+    log.info('fixed !') 
+    return histfactory.make_workspace(measurement, silence=True)
+
+def get_sig(category, iso_correction_graph, mass=125):
+    analysis = Analysis(2012, use_embedding=False, iso_correction_graph=iso_correction_graph)
+    analysis.normalize(category)
+    clf = analysis.get_clf(
+        category, load=True, 
+        mass=mass, transform=True)
+    scores = analysis.get_scores(
+        clf, category, TARGET_REGION, 
+        mode='workspace', masses=[mass])
+    # binning = list(Hist(40, scores.min_score, scores.max_score).xedges())
+    # binning[0] -=1E5
+    # binning[-1] +=1E5
+    binning = clf.binning(analysis.year, overflow=1E5)
+    hist_template = Hist(binning)
+    ws = get_workspace(
+        scores, hist_template, clf, category,
+        mass=mass)
+    log.info(ws)
+    sig, _, _ = significance(ws)
+    log.info(sig)
+
+    # -- handle nan
+    return 0 if sig != sig else sig
+
+
+def fit(category, iso_corrections, n_jobs=-1):
+    sigs = map_pool(
+        FuncWorker, [(get_sig, category, corr) for corr in iso_corrections], 
+        n_jobs=n_jobs)
+    pvals  = [gaussian_cdf_c(sig) for sig in sigs]
+    pvals_dict = {}
+    for corr, pval, sig in zip(iso_corrections, pvals, sigs):
+        pvals_dict[corr] = {'sig': sig, 'pval': pval}
+    return pvals_dict
+
+def plottables(graphs):
+    pvals = []
+    linecolors = []
+    thres = list(graphs[0].x())
+    for graph in graphs:
+        pvals.append(list(graph.y()))
+        linecolors.append(pvals_dict[graph.name]['color'])
+        graph.title = pvals_dict[graph.name]['label']
+        graph.legendstyle = 'L'
+        graph.linecolor = pvals_dict[graph.name]['color']
+        graph.linewidth = 4
+        log.info(list(graph.x()))
+        log.info(list(graph.y()))
+    return graphs, pvals, thres, linecolors
+
+if __name__ == '__main__':
+    
+    # pip install --user tabulate
+    from rootpy.extern.argparse import ArgumentParser
+    from rootpy.tree import Cut
+    from mva.categories import Category_VBF, Category_Boosted
+
+    parser = ArgumentParser()
+    parser.add_argument('--jobs', type=int, default=-1)
+    parser.add_argument('--fit', action='store_true', default=False)
+    parser.add_argument('--plot', action='store_true', default=False)
+
+    args = parser.parse_args()
+
+    category = Category_VBF
+    iso_corrections = []
+    with root_open(os.path.join(DAT_DIR, 'iso_curves_truth.root')) as fcorr:
+        for _, _, names in fcorr.walk():
+            for name in names:
+                if 'run1' in name:
+                    iso_corrections.append(name)
+    log.info(iso_corrections)
+    log.info(len(iso_corrections))
+    # iso_corrections = iso_corrections[:9]
+    if args.fit:
+        pvals_dict = {}
+        lists = chunked_list(iso_corrections, number_of_chunk=10)
+        for i, corrs in enumerate(lists):
+            log.info('Chunk {0} / {1}'.format(i, len(lists)))
+            log.info(corrs)
+            pvals = fit(category, corrs, n_jobs=args.jobs)
+            pvals_dict.update(pvals)
+            log.info(pvals_dict)
+        log.info(pvals_dict)
+        log.info(len(pvals_dict.keys()))
+        
+        for key in pvals_dict:
+            offset, slope = key.replace('__', '/').replace('_over_run1', '').replace('_', '.').split('/')
+            pvals_dict[key]['offset'] = float(offset)
+            pvals_dict[key]['slope'] = float(slope)
+        log.info(pvals_dict)
+
+        a = np.array([
+                [pvals_dict[key]['offset'], 
+                 pvals_dict[key]['slope']] for key in pvals_dict.keys()])
+        w = np.array([pvals_dict[key]['sig'] for key in pvals_dict.keys()])
+
+
+        h = Hist2D(len(a), -0.25, 5.25, len(a), -0.01, 0.19)
+        h.name = 'map'
+        h.xaxis.title = 'offset (b) [GeV]'
+        h.yaxis.title = 'slope (m)'
+        fill_hist(h, a, w)
+        
+        log.info(a)
+        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map.root'), 'recreate') as fout:
+            h.Write()
+
+    if args.plot:
+        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map.root')) as fout:
+            set_style('ATLAS')
+            h = fout['map']
+            h.xaxis.title = 'offset (b) [GeV]'
+            h.yaxis.title = 'slope (m)'
+            h.SetMarkerSize(800)
+            c = Canvas()
+            c.SetRightMargin(0.15)
+            h.Draw('colztext')
+            ATLAS_label(
+                0.5, 1.0, text="Internal", 
+                sqrts=8, pad=c, sep=0.12)
+            c.SaveAs('optimize-trigger-isolation.png')
+            
