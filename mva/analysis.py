@@ -86,7 +86,7 @@ class Analysis(object):
         self.fakes_region = fakes_region
         self.suffix = suffix
         self.norm_field = norm_field
-
+        self.iso_correction_graph = iso_correction_graph
         if use_embedding:
             log.info("Using embedded Ztautau")
             self.ztautau = samples.Embedded_Ztautau(
@@ -175,7 +175,7 @@ class Analysis(object):
                     linewidth=2,
                     linestyle='solid',
                     ggf_weight=self.ggf_weight,
-                    iso_correction_graph=iso_correction_graph)
+                    iso_correction_graph=self.iso_correction_graph)
                 if m != 125 and scale_125:
                     log.warning("SCALING SIGNAL TO 125")
                     log.info(str(s.mass))
@@ -192,7 +192,7 @@ class Analysis(object):
                         mass=m,
                         systematics=False,
                         scale=self.mu,
-                        iso_correction_graph=iso_correction_graph,
+                        iso_correction_graph=self.iso_correction_graph,
                         ggf_weight=self.ggf_weight).events()[1].value
                     log.warning("SCALING SIGNAL TO 125")
                     sf = events_125 / curr_events
@@ -204,7 +204,7 @@ class Analysis(object):
                         mass=m,
                         systematics=self.systematics,
                         scale=self.mu,
-                        iso_correction_graph=iso_correction_graph,
+                        iso_correction_graph=self.iso_correction_graph,
                         ggf_weight=self.ggf_weight)
                     if m != 125 and scale_125:
                         log.warning("SCALING SIGNAL TO 125")
@@ -230,7 +230,7 @@ class Analysis(object):
                         mode=_mode,
                         systematics=self.systematics,
                         scale=self.mu,
-                        iso_correction_graph=iso_correction_graph,
+                        iso_correction_graph=self.iso_correction_graph,
                         ggf_weight=self.ggf_weight))
         else:
             for m in mass:
@@ -240,7 +240,7 @@ class Analysis(object):
                     mode=mode,
                     systematics=self.systematics,
                     scale=self.mu,
-                    iso_correction_graph=iso_correction_graph,
+                    iso_correction_graph=self.iso_correction_graph,
                     ggf_weight=self.ggf_weight))
         return signals
 

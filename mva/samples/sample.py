@@ -1218,7 +1218,7 @@ class SystematicsSample(Sample):
                 if correction_weights:
                     weights *= reduce(np.multiply, correction_weights)
                 if isinstance(self, (Signal, Ztautau)):
-                    log.info('Apply Isolation trigger weights')
+                    log.debug('Apply Isolation trigger weights')
                     iso_trigger_corrections_weights = self.iso_correction(rec)
                     if iso_trigger_corrections_weights:
                         weights *= reduce(np.multiply, iso_trigger_corrections_weights[0])
