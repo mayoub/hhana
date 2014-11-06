@@ -160,28 +160,32 @@ if __name__ == '__main__':
         w = np.array([pvals_dict[key]['sig'] for key in pvals_dict.keys()])
 
 
-        h = Hist2D(len(a), -0.25, 5.25, len(a), -0.01, 0.19)
+        h = Hist2D(11, -0.25, 5.25, 10, -0.01, 0.19)
         h.name = 'map'
         h.xaxis.title = 'offset (b) [GeV]'
         h.yaxis.title = 'slope (m)'
         fill_hist(h, a, w)
         
         log.info(a)
-        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map.root'), 'recreate') as fout:
+        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map_{0}.root'.format(category.name)), 'recreate') as fout:
             h.Write()
 
     if args.plot:
-        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map.root')) as fout:
+        with root_open(os.path.join(TMP_DIR, 'temp_trigger_iso_map_{0}.root'.format(category.name))) as fout:
             set_style('ATLAS')
+            ROOT.gStyle.SetPaintTextFormat("1.2f")
             h = fout['map']
             h.xaxis.title = 'offset (b) [GeV]'
             h.yaxis.title = 'slope (m)'
-            h.SetMarkerSize(800)
+            h.SetMarkerSize(600)
             c = Canvas()
+            c.SetTopMargin(0.08)
             c.SetRightMargin(0.15)
             h.Draw('colztext')
-            ATLAS_label(
-                0.5, 1.0, text="Internal", 
-                sqrts=8, pad=c, sep=0.12)
-            c.SaveAs('optimize-trigger-isolation.png')
+            lat = ROOT.TLatex(c.GetLeftMargin()+0.01, 1-c.GetTopMargin()+0.02, 
+                              'Significance (expressed in gaussian std. dev.), {0}'.format(category.label))
+            lat.SetNDC()
+            lat.SetTextSize(20)
+            lat.Draw('same')
+            c.SaveAs('optimize-trigger-isolation_{0}.png'.format(category.name))
             
