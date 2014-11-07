@@ -88,9 +88,9 @@ if __name__=='__main__':
     clf = ana.get_clf(Category, load=True, mass=125, transform=True)
     #     higgs = Higgs(2012)
     nom = Higgs(2012)
-    nom_hists, field_scale = nom.get_field_hist(field_dict, Category_Boosted)
+    nom_hists, field_scale = nom.get_field_hist(field_dict, Category)
     nom.draw_array(nom_hists, 
-                       Category_Boosted, 
+                       Category, 
                        TARGET_REGION, 
                        field_scale=field_scale)
     h_scores_template = Hist(10, -1, 1)
@@ -114,9 +114,9 @@ if __name__=='__main__':
     sample_mod = []
     for iso, title, color in isol_weights:
         sample = Higgs(2012, iso_correction_graph=iso)
-        sample_hists, _ = sample.get_field_hist(field_dict, Category_Boosted)
+        sample_hists, _ = sample.get_field_hist(field_dict, Category)
         sample.draw_array(
-            sample_hists, Category_Boosted, TARGET_REGION, field_scale=field_scale)
+            sample_hists, Category, TARGET_REGION, field_scale=field_scale)
         scores = sample.scores(clf, Category, TARGET_REGION)
         h_scores = histogram_scores(h_scores_template, scores)
         sample_hists['scores'] = h_scores
