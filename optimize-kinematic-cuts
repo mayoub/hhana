@@ -232,7 +232,7 @@ if __name__ == '__main__':
             ATLAS_label(
                 0.5, 0.90, text="Internal", 
                 sqrts=8, pad=c, sep=0.12)
-            c.SaveAs('optimize-pt-cuts.png')
+            c.SaveAs('optimize-pt-cuts.eps')
             
         with root_open(os.path.join(TMP_DIR, 'temp_dr_cuts.root')) as fout:
             graphs = []
@@ -267,4 +267,4 @@ if __name__ == '__main__':
             ATLAS_label(
                 0.5, 0.90, text="Internal", 
                 sqrts=8, pad=c, sep=0.12)
-            c.SaveAs('optimize-dr-cuts.png')
+            c.SaveAs('optimize-dr-cuts.eps')

@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    category = Category_VBF
+    category = Category_Boosted
     iso_corrections = []
     with root_open(os.path.join(DAT_DIR, 'iso_curves_truth.root')) as fcorr:
         for _, _, names in fcorr.walk():
@@ -187,5 +187,5 @@ if __name__ == '__main__':
             lat.SetNDC()
             lat.SetTextSize(20)
             lat.Draw('same')
-            c.SaveAs('optimize-trigger-isolation_{0}.png'.format(category.name))
+            c.SaveAs('optimize-trigger-isolation_{0}.eps'.format(category.name))
             

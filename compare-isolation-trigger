@@ -137,4 +137,4 @@ if __name__=='__main__':
             hist_nom.xaxis.title = vars[field]['root']
         label = '{0}, {1}'.format(nom.label, Category.label)
         pl = plot(hist_nom, hist_mods, label=label, logy=False)
-        pl.SaveAs('compare_isolation_{0}_{1}.png'.format(field, Category.name))
+        pl.SaveAs('compare_isolation_{0}_{1}.eps'.format(field, Category.name))

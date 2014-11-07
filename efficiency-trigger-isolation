@@ -84,7 +84,7 @@ if __name__=='__main__':
     h_yields.SetMarkerSize(800)
     h_yields.Draw('colztext')
     lat.Draw('same')
-    c.SaveAs('yields-trigger-isolation_{0}_{1}.png'.format(Category.name, nom.name))
+    c.SaveAs('yields-trigger-isolation_{0}_{1}.eps'.format(Category.name, nom.name))
 
     c = Canvas()
     c.SetTopMargin(0.08)
@@ -94,7 +94,7 @@ if __name__=='__main__':
     h_eff.SetMarkerSize(800)
     h_eff.Draw('colztext')
     lat.Draw('same')
-    c.SaveAs('eff-trigger-isolation_{0}_{1}.png'.format(Category.name, nom.name))
+    c.SaveAs('eff-trigger-isolation_{0}_{1}.eps'.format(Category.name, nom.name))
 
     # for iso, title, color in isol_weights:
     #     sample = Higgs(2012, iso_correction_graph=iso)
