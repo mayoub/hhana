@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+"""
+"""
+# python imports
+import os
+import logging
+# ROOT/rootpy imports
+from rootpy.tree import Cut
+from rootpy.plotting import Canvas, Legend, HistStack
+import ROOT
+# local imports
+from mva.samples import MC_Ztautau, Others, Data
+from mva.categories import Category_Loose_Preselection
+from mva.regions import OS
+from mva.variables import VARIABLES, get_label
+from mva.plotting.templates import SimplePlot
+
+log = logging.getLogger(os.path.basename(__file__))
+
+def plot(hist_data, hist_ztautau, hist_others, label=None, data_info=None):
+    hist_ztautau.drawstyle = 'HIST'
+    hist_others.drawstyle = 'HIST'
+    hist_ztautau.legendstyle = 'F'
+    hist_others.legendstyle = 'F'
+    hist_ztautau.color = '#00A3FF'
+    hist_others.color = '#8A0F0F'
+
+    stack = HistStack([hist_others, hist_ztautau])
+    c = SimplePlot(xtitle=hist_data.xaxis.title, ytitle='Events', logy=True)
+    c.draw('main', [hist_data, stack])
+    leg = Legend(
+        [hist_data, hist_ztautau, hist_others],
+        textsize=15)
+    leg.Draw('same')
+    if label:
+        text = label
+        if data_info:
+            text = str(data_info) + ', ' + label
+        lat = ROOT.TLatex(
+            0.15,
+            1 - 0.03,
+            text)
+        lat.SetNDC()
+        lat.SetTextSize(15)
+        lat.Draw('same')
+        
+    return c
+
+if __name__=='__main__':
+    # list of fields to plot
+    fields = [
+        'dR_tau1_tau2',
+        'dEta_tau1_tau2',
+        'resonance_pt',
+        'tau1_pt',
+        'tau1_BDTJetScore',
+        'mass_vis_tau1_tau2',
+        ]
+    
+    field_dict = dict([(field, VARIABLES[field]) for field in fields])
+    cuts = None
+    
+    ztautau = MC_Ztautau(2012)
+    data = Data(2012)
+    others = Others(2012)
+    
+    ztautau_hists, field_scale = ztautau.get_field_hist(field_dict, Category_Loose_Preselection)
+    others_hists, _ = others.get_field_hist(field_dict, Category_Loose_Preselection)
+    data_hists, _ = data.get_field_hist(field_dict, Category_Loose_Preselection)
+
+    ztautau.draw_array(
+        ztautau_hists, Category_Loose_Preselection, 'OS',
+        cuts=cuts, field_scale=field_scale)
+    others.draw_array(
+        others_hists, Category_Loose_Preselection, 'OS',
+        cuts=cuts, field_scale=field_scale)
+    data.draw_array(
+        data_hists, Category_Loose_Preselection, 'OS',
+        cuts=cuts, field_scale=field_scale)
+    
+        
+    for field in field_dict:
+        ztautau_hist = ztautau_hists[field]
+        others_hist = others_hists[field]
+        data_hist = data_hists[field]
+        ztautau_hist.title = 'Z#rightarrow#tau_{had}#tau_{had}'
+        others_hist.title = 'Top + EWK'
+        data_hist.title = data.label
+
+
+        ztautau_hist.xaxis.title = VARIABLES[field]['root']
+        data_hist.xaxis.title = get_label(field)
+        others_hist.xaxis.title = VARIABLES[field]['root']
+        pl = plot(
+            data_hist, 
+            ztautau_hist, 
+            others_hist, 
+            label=Category_Loose_Preselection.label,
+            data_info=data.info)
+        pl.SaveAs('loose_preselection_{0}.png'.format(field))
