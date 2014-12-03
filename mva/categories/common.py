@@ -71,6 +71,14 @@ CUTS_BOOSTED_CR = (
     )
 
 
+class Category_Loose_Preselection(Category):
+    name = 'loose_preselection'
+    label = '#tau_{had}#tau_{had} Loose Preselection'
+    common_cuts = (
+        LEAD_TAU_35 & SUBLEAD_TAU_25
+        & ID_MEDIUM)
+    
+
 class Category_Preselection_NO_MET_CENTRALITY(Category):
     name = 'preselection'
     label = '#tau_{had}#tau_{had} Preselection'
