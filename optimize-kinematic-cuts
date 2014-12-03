@@ -220,6 +220,7 @@ if __name__ == '__main__':
                     graphs.append(fout[name])
             graphs, pvals, thres, linecolors  = plottables(graphs)
             c = Canvas()
+            c.name = 'pt_optimization'
             pvalue_plot(
                 thres, pvals, 
                 pad=c, xtitle='threshold step', 
@@ -233,6 +234,7 @@ if __name__ == '__main__':
                 0.5, 0.90, text="Internal", 
                 sqrts=8, pad=c, sep=0.12)
             c.SaveAs('optimize-pt-cuts.eps')
+            c.SaveAs('optimize-pt-cuts.root')
             
         with root_open(os.path.join(TMP_DIR, 'temp_dr_cuts.root')) as fout:
             graphs = []
@@ -257,6 +259,7 @@ if __name__ == '__main__':
                 log.info(list(graph.y()))
 
             c = Canvas()
+            c.name = 'dr_optimization'
             pvalue_plot(
                 thres, pvals, 
                 pad=c, xtitle='Upper #DeltaR(#tau_{1}, #tau_{2}) cut value', 
@@ -268,3 +271,4 @@ if __name__ == '__main__':
                 0.5, 0.90, text="Internal", 
                 sqrts=8, pad=c, sep=0.12)
             c.SaveAs('optimize-dr-cuts.eps')
+            c.SaveAs('optimize-dr-cuts.root')
