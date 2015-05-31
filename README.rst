@@ -2,6 +2,11 @@
 
     UNDER CONSTRUCTION
 
+Informations
+============
+
+* This is the branch dedicated to trigger studies
+
 Dependencies
 ============
 
