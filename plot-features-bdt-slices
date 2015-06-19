@@ -1,0 +1,53 @@
+#!/usr/bin/env python
+import os
+from rootpy.plotting import Hist, Canvas
+from rootpy.plotting.style import set_style
+from mva.cmd import get_parser
+from mva.analysis import get_analysis
+from mva import log; log = log[os.path.basename(__file__)]
+from mva.variables import VARIABLES
+args = get_parser(actions=False).parse_args()
+year = args.year
+
+fields = [
+    'mmc1_mass',
+]
+
+vars = {}
+for var in fields:
+    vars[var] = VARIABLES[var]
+
+analysis = get_analysis(args)
+
+cat_defs = [args.categories]
+if args.categories != 'presel':
+    cat_defs.append(args.controls)
+
+for category in analysis.iter_categories(*cat_defs, names=args.category_names):
+    if category.analysis_control:
+        continue
+
+    log.info(category.name)
+    clf = analysis.get_clf(
+        category, load=True, 
+        mass=125, transform=True)
+
+    clf_bins = clf.binning(analysis.year, overflow=1E5)
+    bins_hist = Hist(clf_bins)
+    bins_edges = list(zip(bins_hist.xedgesl(), bins_hist.xedgesh()))
+
+    h125 = analysis.higgs_125
+    scores = h125.scores(clf, category, 'OS_ISOL')
+
+    for edges in bins_edges:
+        field_hist, field_scale = h125.get_field_hist(vars, category)
+        h125.draw_array(
+            field_hist, category, 'OS_ISOL',
+            field_scale=field_scale,
+            clf=clf,
+            scores=scores,
+            min_score=edges[0],
+            max_score=edges[1])
+        for k, h in field_hist.items():
+            log.info('{0:1.2f} < score < {1:1.2f}: {2} = {3}'.format(
+                    edges[0], edges[1], k, h.GetMean()))
