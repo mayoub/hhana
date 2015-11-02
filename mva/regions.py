@@ -44,6 +44,9 @@ ID_MEDIUM_TIGHT = (TAU1_MEDIUM & TAU2_TIGHT) | (TAU1_TIGHT & TAU2_MEDIUM)
 ID_MEDIUM_NOT_TIGHT = (TAU1_MEDIUM & -TAU1_TIGHT) & (TAU2_MEDIUM & -TAU2_TIGHT)
 
 
+OS_LH     = Cut('(lep_0_q * tau_0_q) < 0')
+SS_LH     = Cut('(lep_0_q * tau_0_q) >  0')
+
 REGIONS = {
     'ALL': Cut(),
 
@@ -67,6 +70,10 @@ REGIONS = {
     'OS_NONID_NONISOL': OS & P1P3 & ANTI_ID_MEDIUM & TRACK_NONISOLATION,
 
     'NONISOL': TRACK_NONISOLATION,
+
+    'OS_LH':OS_LH,
+    'SS_LH':SS_LH,
+    
 }
 
 REGION_SYSTEMATICS = {

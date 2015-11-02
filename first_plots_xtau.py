@@ -9,6 +9,9 @@ from mva.categories.lephad import Category_VBF_lh,Category_Boosted_lh,Category_P
 from mva.plotting import draw_ratio, draw
 from tabulate import tabulate
 
+from mva.samples.fakes import OS_SS
+from mva.regions import OS_LH, SS_LH
+
 # Instantiate and load the database
 DB = Database('datasets_lh')
 
@@ -60,8 +63,15 @@ data = Data(
     label='Data 2015',
     trigger=False)
 
+data_ss_os = OS_SS(data, SS_LH, OS_LH, color='green' , label='QCD')
 
+z_os_ss = OS_SS(ztautau, OS_LH, SS_LH, color='#00A3FF', label='Ztautau')
 
+top_os_ss = OS_SS(top, OS_LH, SS_LH, color='yellow', label='Top')
+
+ewk_os_ss = OS_SS(ewk, OS_LH, SS_LH, color='#8A0F0F', label='EWK')
+
+data_os_ss = OS_SS(data, OS_LH, SS_LH)
 
 
 fields = [
@@ -88,7 +98,7 @@ vars = {}
 for f in fields:
     if f in VARIABLES.keys():
         vars[f] =  VARIABLES[f]
-categories = [Category_Preselection_lh]
+categories = [Category_Preselection_lh, Category_VBF_lh, Category_Boosted_lh]
 #categories = [Category_Preselection_lh, Category_Boosted_lh, Category_VBF_lh, Category_wplusjets_CR_lh, Category_Ztautau_CR_lh, Category_Top_CR_lh ]
 headers = [c.name for c in categories]
 headers.insert(0, 'sample / category')
@@ -96,7 +106,7 @@ headers.insert(0, 'sample / category')
 table = []
 
 # for sample in (ztautau, top, ewk, data):
-for sample in (ztautau, ewk, top,  data):
+for sample in (ztautau,  data):
     row = [sample.name]
     table.append(row)
     for category in categories:
@@ -111,17 +121,34 @@ print
 
 
 for cat in categories:
-    a1, b = data.get_field_hist(vars, cat)
-    data.draw_array(a1, cat, 'ALL', field_scale=b)
+    #a1, b = data.get_field_hist(vars, cat)
+    #data.draw_array(a1, cat, 'ALL', field_scale=b)
+
+    a1, b = data_os_ss.get_field_hist(vars, cat)
+    data_os_ss.draw_array(a1, cat, 'OS_LH', field_scale=b)
+
+
+    qcd_h, _ = data_ss_os.get_field_hist(vars, cat)
+    data_ss_os.draw_array(qcd_h, cat, 'SS_LH', field_scale=b)
+
+    z_h, _ = z_os_ss.get_field_hist(vars, cat)
+    z_os_ss.draw_array(z_h, cat, 'OS_LH', field_scale=b)
+
+    ewk_h, _ = ewk_os_ss.get_field_hist(vars, cat)
+    ewk_os_ss.draw_array(ewk_h, cat, 'OS_LH', field_scale=b)
+
+    t_h, _ = top_os_ss.get_field_hist(vars, cat)
+    top_os_ss.draw_array(t_h, cat, 'OS_LH', field_scale=b)
+
     
-    z_h, _ = ztautau.get_field_hist(vars, cat)
-    ztautau.draw_array(z_h, cat, 'ALL', field_scale=b)
+     #z_h, _ = ztautau.get_field_hist(vars, cat)
+     #ztautau.draw_array(z_h, cat, 'ALL', field_scale=b)
 
-    t_h, _ = top.get_field_hist(vars, cat)
-    top.draw_array(t_h, cat, 'ALL', field_scale=b)
+     #t_h, _ = top.get_field_hist(vars, cat)
+     #top.draw_array(t_h, cat, 'ALL', field_scale=b)
 
-    ewk_h, _ = ewk.get_field_hist(vars, cat)
-    ewk.draw_array(ewk_h, cat, 'ALL', field_scale=b)
+     #ewk_h, _ = ewk.get_field_hist(vars, cat)
+     #ewk.draw_array(ewk_h, cat, 'ALL', field_scale=b)
 
 
     for field in a1:
@@ -131,7 +158,7 @@ for cat in categories:
             cat,
            # data=a1[field],
             data=None if a1[field].Integral() == 0 else a1[field],
-            model=[ewk_h[field], z_h[field]], 
+            model=[ewk_h[field], z_h[field], t_h[field], qcd_h[field]], 
             # model=[t_h[field], ewk_h[field], z_h[field]],
             units=vars[field]['units'] if 'units' in vars[field] else None, 
             logy=False,
