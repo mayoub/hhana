@@ -16,7 +16,8 @@ MT_LEP_MET_ZTT_CR =Cut('lephad_mt_lep0_met < 40000')
 DITAU_MASS_ZTT_CR = Cut('lephad_mmc_mlm_m < 110000')
 ONE_SELECTED_LEPTON= Cut('is_oneselectedlep==1')
 ONE_SELECTED_TAU= Cut('is_oneselectedtau==1')
-
+LEPTON_IS_ELE = Cut('lep_isele==1')
+LEPTON_IS_MU = Cut('lep_ismu==1')
 # common preselection cuts
 PRESELECTION = (
     TRIGGER
@@ -26,7 +27,7 @@ PRESELECTION = (
     & MET 
     & BVETO
     & MT_LEP_MET
-    # & LEPTON_IS_ELE
+    & LEPTON_IS_ELE
     )
 
 # common preselection cuts without BVETO and without Mt cuts (useful for CR)

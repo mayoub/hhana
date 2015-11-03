@@ -542,6 +542,18 @@ LH_VARIABLES = {
         'scale': 0.001,
         'blind': (100, 150),
     },
+    'lephad_vis_mass': {
+        'title': r'$m^{vis}_{\tau\tau}$',
+        'root': '#font[52]{m}^{vis}_{#font[152]{#tau}#font[152]{#tau}}',
+        'filename': 'lephad_vis_mass',
+        'binning': {
+            'PRESELECTION': (20, 30, 150),
+            'REST': (20, 30, 150),
+            None: (20, 0, 250)},
+        'scale': 0.001,
+        'units': 'GeV',
+        'blind': (70, 110),
+    },
     'lephad_met_centrality': {
         'title': r'$E^{miss}_{T}$ Centrality',
         'root': '#font[52]{E}^{miss}_{T} #font[152]{#phi} centrality',

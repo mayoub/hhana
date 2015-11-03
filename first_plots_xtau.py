@@ -63,7 +63,16 @@ data = Data(
     label='Data 2015',
     trigger=False)
 
-data_ss_os = OS_SS(data, SS_LH, OS_LH, color='green' , label='QCD')
+qcd = Data(
+    2015,
+    ntuple_path=NTUPLE_PATH, 
+    student='lhskim',
+    channel='lephad',
+    label='QCD',
+    color='green',
+    trigger=False)
+
+#data_ss_os = OS_SS(data, SS_LH, OS_LH, color='green' , label='QCD')
 
 z_os_ss = OS_SS(ztautau, OS_LH, SS_LH, color='#00A3FF', label='Ztautau')
 
@@ -71,7 +80,7 @@ top_os_ss = OS_SS(top, OS_LH, SS_LH, color='yellow', label='Top')
 
 ewk_os_ss = OS_SS(ewk, OS_LH, SS_LH, color='#8A0F0F', label='EWK')
 
-data_os_ss = OS_SS(data, OS_LH, SS_LH)
+#data_os_ss = OS_SS(data, OS_LH, SS_LH, label='data')
 
 
 fields = [
@@ -91,6 +100,7 @@ fields = [
     'prod_eta_jets',
     'jets_visible_mass',
     'n_avg_int',
+    'lephad_vis_mass',
 
 ]
 
@@ -98,7 +108,7 @@ vars = {}
 for f in fields:
     if f in VARIABLES.keys():
         vars[f] =  VARIABLES[f]
-categories = [Category_Preselection_lh, Category_VBF_lh, Category_Boosted_lh]
+categories = [Category_Preselection_lh]
 #categories = [Category_Preselection_lh, Category_Boosted_lh, Category_VBF_lh, Category_wplusjets_CR_lh, Category_Ztautau_CR_lh, Category_Top_CR_lh ]
 headers = [c.name for c in categories]
 headers.insert(0, 'sample / category')
@@ -124,21 +134,21 @@ for cat in categories:
     #a1, b = data.get_field_hist(vars, cat)
     #data.draw_array(a1, cat, 'ALL', field_scale=b)
 
-    a1, b = data_os_ss.get_field_hist(vars, cat)
-    data_os_ss.draw_array(a1, cat, 'OS_LH', field_scale=b)
+    a1, b = data.get_field_hist(vars, cat)
+    data.draw_array(a1, cat, 'OS_LH', field_scale=b)
 
 
-    qcd_h, _ = data_ss_os.get_field_hist(vars, cat)
-    data_ss_os.draw_array(qcd_h, cat, 'SS_LH', field_scale=b)
+    qcd_h, _ = qcd.get_field_hist(vars, cat)
+    qcd.draw_array(qcd_h, cat, 'SS_LH', field_scale=b)
 
     z_h, _ = z_os_ss.get_field_hist(vars, cat)
-    z_os_ss.draw_array(z_h, cat, 'OS_LH', field_scale=b)
+    z_os_ss.draw_array(z_h, cat, 'ALL', field_scale=b)
 
     ewk_h, _ = ewk_os_ss.get_field_hist(vars, cat)
-    ewk_os_ss.draw_array(ewk_h, cat, 'OS_LH', field_scale=b)
+    ewk_os_ss.draw_array(ewk_h, cat, 'ALL', field_scale=b)
 
     t_h, _ = top_os_ss.get_field_hist(vars, cat)
-    top_os_ss.draw_array(t_h, cat, 'OS_LH', field_scale=b)
+    top_os_ss.draw_array(t_h, cat, 'ALL', field_scale=b)
 
     
      #z_h, _ = ztautau.get_field_hist(vars, cat)

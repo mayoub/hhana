@@ -138,7 +138,15 @@ class Sample(object):
         if 'fillstyle' not in hist_decor:
             self.hist_decor['fillstyle'] = 'solid'
         self.trigger = trigger
-        self.channel = channel
+        if channel == 'ehad':
+            self.channel = 'lephad'
+            self.flavour = Cut('lep_isele==1')
+        elif channel == 'muhad':
+            self.channel = 'lephad'
+            self.flavour = Cut('lep_ismu==1')
+        else:
+            self.channel = channel
+            self.flavour = None
 
     def decorate(self, name=None, label=None, **hist_decor):
         if name is not None:
@@ -559,6 +567,9 @@ class Sample(object):
         #     if self.channel == 'hadhad':
         #         data_cut = Cut('is_good_grl == 1')
         #         cuts &= data_cut
+        
+        if self.flavour:
+            cuts &=self.flavour
 
         if isinstance(self, SystematicsSample):
             systerm, variation = SystematicsSample.get_sys_term_variation(
